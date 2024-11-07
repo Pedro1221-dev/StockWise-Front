@@ -4,8 +4,11 @@ Repository for the Project made in the scope of the Cloud Services and Interface
 Students:
 
 -Diogo Vale (40220475@esmad.ipp.pt)
--Paulo Graça (40220477@esmad.ipp.pt)
--Pedro Carneiro (40220243@esmad.ipp.pt)
--Simão Freitas (40220191@esmad.ipp.pt)
-StockWise's FrontEnd
 
+-Paulo Graça (40220477@esmad.ipp.pt)
+
+-Pedro Carneiro (40220243@esmad.ipp.pt)
+
+-Simão Freitas (40220191@esmad.ipp.pt)
+
+StockWise's FrontEnd
