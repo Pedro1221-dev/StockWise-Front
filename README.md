@@ -8,3 +8,4 @@ Students:
 -Pedro Carneiro (40220243@esmad.ipp.pt)
 -Simão Freitas (40220191@esmad.ipp.pt)
 StockWise's FrontEnd
+
