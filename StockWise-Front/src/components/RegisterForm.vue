@@ -13,6 +13,16 @@
       rounded="lg"
     >
 
+    <div class="text-subtitle-1 text-medium-emphasis">Name</div>
+
+
+    <v-text-field
+        density="compact"
+        placeholder="Name"
+        prepend-inner-icon="mdi-name-outline"
+        variant="outlined"
+      ></v-text-field>
+
       <div class="text-subtitle-1 text-medium-emphasis">Email</div>
 
       <v-text-field
