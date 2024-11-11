@@ -20,6 +20,7 @@
         placeholder="Email"
         prepend-inner-icon="mdi-email-outline"
         variant="outlined"
+        v-model="form.email"
       ></v-text-field>
 
       <div class="text-subtitle-1 text-medium-emphasis d-flex align-center justify-space-between">
@@ -42,6 +43,7 @@
         prepend-inner-icon="mdi-lock-outline"
         variant="outlined"
         @click:append-inner="visible = !visible"
+        v-model="form.password"
       ></v-text-field>
 
       <v-card
@@ -60,6 +62,7 @@
         size="large"
         variant="tonal"
         block
+        @click="login"
       >
         Log In
       </v-btn>
@@ -71,16 +74,28 @@
           rel="noopener noreferrer"
           target="_blank"
         >
-          Sign up now <v-icon icon="mdi-chevron-right"></v-icon>
+          <RouterLink to="/register">Sign up now <v-icon icon="mdi-chevron-right"></v-icon></RouterLink>
         </a>
       </v-card-text>
     </v-card>
   </div>
 </template>
 <script>
-  export default {
-    data: () => ({
-      visible: false,
-    }),
+import { useUserStore } from "@/stores/user";
+
+export default {
+  data: () => ({
+    form: {
+      email: '',
+      password: ''
+    },
+    visible: false,
+  }),
+  methods: {
+
+    async login() {
+      await useUserStore().login(this.form);
+    }
   }
+}
 </script>
