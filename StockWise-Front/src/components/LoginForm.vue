@@ -1,13 +1,7 @@
 <template>
   <div>
-    <v-img
-      class="mx-auto my-6"
-      max-width="228"
-      src="https://cdn.vuetifyjs.com/docs/images/logos/vuetify-logo-v3-slim-text-light.svg"
-    ></v-img>
-
     <v-card
-      class="mx-auto pa-12 pb-8"
+      class="mx-auto pa-12 pb-8 custom-margin-top"
       elevation="8"
       max-width="448"
       rounded="lg"
@@ -21,18 +15,12 @@
         prepend-inner-icon="mdi-email-outline"
         variant="outlined"
         v-model="form.email"
+        :rules="emailRules"
+        aria-required="true"
       ></v-text-field>
 
       <div class="text-subtitle-1 text-medium-emphasis d-flex align-center justify-space-between">
         Password
-
-        <a
-          class="text-caption text-decoration-none text-blue"
-          href="#"
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          Forgot login password?</a>
       </div>
 
       <v-text-field
@@ -44,17 +32,10 @@
         variant="outlined"
         @click:append-inner="visible = !visible"
         v-model="form.password"
+        :rules="passwordRules" 
+        aria-required="true"
       ></v-text-field>
 
-      <v-card
-        class="mb-12"
-        color="surface-variant"
-        variant="tonal"
-      >
-        <v-card-text class="text-medium-emphasis text-caption">
-          Warning: After 3 consecutive failed login attempts, you account will be temporarily locked for three hours. If you must login now, you can also click "Forgot login password?" below to reset the login password.
-        </v-card-text>
-      </v-card>
 
       <v-btn
         class="mb-8"
@@ -62,7 +43,7 @@
         size="large"
         variant="tonal"
         block
-        @click="login"
+        @click="validateForm"      
       >
         Log In
       </v-btn>
@@ -90,12 +71,32 @@ export default {
       password: ''
     },
     visible: false,
+    emailRules: [
+      v => !!v || 'Email is required',
+      v => /.+@.+\..+/.test(v) || 'Email must be valid'
+    ],
+    passwordRules: [
+      v => !!v || 'Password is required',
+      v => v.length >= 8 || 'Password must be at least 8 characters',
+      v => /[!@#$%^&*(),.?":{}|<>]/.test(v) || 'Password must contain at least one special character'
+    ]
   }),
   methods: {
-
+    validateForm() {
+      this.$refs.form.validate();
+      if (this.$refs.form.validate()) {
+        this.login();
+      }
+    },
     async login() {
       await useUserStore().login(this.form);
     }
   }
 }
 </script>
+
+<style scoped>
+.custom-margin-top {
+  margin-top: 12%;
+}
+</style>
