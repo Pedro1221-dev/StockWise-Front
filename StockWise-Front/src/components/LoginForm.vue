@@ -83,13 +83,18 @@ export default {
   }),
   methods: {
     validateForm() {
-      this.$refs.form.validate();
       if (this.$refs.form.validate()) {
         this.login();
       }
     },
     async login() {
-      await useUserStore().login(this.form);
+      try {
+        await useUserStore().login(this.form);
+        this.$router.push({ name: 'Houses' });
+      } catch (error) {
+        console.error('Login failed:', error);
+        // Handle login error (e.g., show a notification)
+      }
     }
   }
 }
