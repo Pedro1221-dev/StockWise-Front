@@ -1,6 +1,15 @@
 <template>
   <v-card class="mx-auto my-4" max-width="400">
-    <v-card-title>{{ name }}</v-card-title>
+    <v-row no-gutters>
+      <v-col>
+        <v-card-title>{{ name }}</v-card-title>
+      </v-col>
+      <v-col class="d-flex justify-end align-center">
+        <v-btn icon @click="editHouse">
+          <img :src="editIcon" alt="Edit" class="edit-icon">
+        </v-btn>
+      </v-col>
+    </v-row>
     <v-card-subtitle>Min Temp: {{ minTemp }}°C</v-card-subtitle>
     <v-card-subtitle>Max Temp: {{ maxTemp }}°C</v-card-subtitle>
     <v-card-actions>
@@ -24,6 +33,7 @@
 
 <script>
 import copyIcon from '@/assets/copyIcon.svg';
+import editIcon from '@/assets/editIcon.png';
 
 export default {
   name: 'userHouseCard',
@@ -44,7 +54,8 @@ export default {
   data() {
     return {
       inviteLink: '',
-      copyIcon
+      copyIcon,
+      editIcon
     };
   },
   methods: {
@@ -58,6 +69,16 @@ export default {
         this.$emit('link-copied', this.inviteLink);
       }).catch(err => {
         console.error('Failed to copy text: ', err);
+      });
+    },
+    editHouse() {
+      this.$router.push({
+        name: 'EditHouse',
+        params: {
+          name: this.name,
+          minTemp: this.minTemp,
+          maxTemp: this.maxTemp
+        }
       });
     }
   }
@@ -82,7 +103,7 @@ export default {
 .mr-2 {
   margin-right: 8px;
 }
-.copy-icon {
+.copy-icon, .edit-icon {
   width: 24px;
   height: 24px;
 }

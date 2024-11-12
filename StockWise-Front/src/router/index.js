@@ -1,4 +1,6 @@
+import CreateHouse from '@/views/CreateHouse.vue'
 import { createRouter, createWebHistory } from 'vue-router'
+import EditHouse from '../views/EditHouse.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import UserHousesListView from '../views/UserHousesListView.vue'
@@ -22,6 +24,17 @@ const router = createRouter({
       name: 'houses',
       component: UserHousesListView,
     },
+    {
+      path: '/edit-house',
+      name: 'EditHouse',
+      component: EditHouse,
+      props: true
+    },
+    {
+      path: '/create-house',
+      name: 'CreateHouse',
+      component: CreateHouse
+    }
 
   ],
 })

@@ -1,17 +1,20 @@
 <template>
-  <div>
-    <userHouseCard
-      v-for="house in houses"
-      :key="house.id"
-      :name="house.name"
-      :minTemp="house.minTemp"
-      :maxTemp="house.maxTemp"
-    />
-  </div>
+  <v-container>
+    <v-btn color="primary" @click="createHouse">Create House</v-btn>
+    <v-row>
+      <v-col v-for="house in houses" :key="house.id" cols="12" md="6">
+        <userHouseCard
+          :name="house.name"
+          :minTemp="house.minTemp"
+          :maxTemp="house.maxTemp"
+        />
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script>
-import UserHouseCard from '../components/userHouseCard.vue';
+import UserHouseCard from '../components/UserHouseCard.vue';
 
 export default {
   components: {
@@ -25,6 +28,11 @@ export default {
         // Add more houses as needed
       ]
     };
+  },
+  methods: {
+    createHouse() {
+      this.$router.push({ name: 'CreateHouse' });
+    }
   }
-}
+};
 </script>
