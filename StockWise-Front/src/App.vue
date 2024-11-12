@@ -1,17 +1,25 @@
 <script setup>
+import { RouterView } from 'vue-router'
+
+// Por enquanto, mantemos o App.vue simples
+// Mais tarde adicionaremos funcionalidades conforme necessário
 </script>
 
 <template>
-  <header>
-    <div class="wrapper">
-      <nav>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
+  <v-app>
+    <v-main>
+      <v-container>
+        <RouterView />
+      </v-container>
+    </v-main>
+  </v-app>
 </template>
 
-<style scoped>
-
+<style>
+/* Estilos globais podem ser adicionados aqui */
+.v-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+}
 </style>
