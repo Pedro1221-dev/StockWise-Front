@@ -1,109 +1,142 @@
 // stores/user.js
-
 import { defineStore } from 'pinia'
 import { apiService } from '@/services/api.service'
+import router from '@/router'
 
 export const useUserStore = defineStore('users', {
     state: () => ({
-        // Estado do utilizador
         user: null,
         isAuthenticated: false,
-        error: null
+        error: null,
+        initialized: false
     }),
 
     getters: {
-        // Podemos adicionar getters conforme necessário
         getCurrentUser: (state) => state.user,
         getAuthStatus: (state) => state.isAuthenticated
     },
 
     actions: {
         /**
-         * Criar novo utilizador
-         * @param {Object} userData - Dados do novo utilizador
-         * @returns {Promise} Resultado da criação
+         * Extrai dados do utilizador do token JWT
+         * @param {string} token - Token JWT
+         * @returns {Object} Dados do utilizador
+         * @private
          */
-        async createUser(userData) {
+        extractUserDataFromToken(token) {
             try {
-                this.error = null
-                const response = await apiService.post('/users', userData)
+                // Decodificar a parte payload do token (2ª parte)
+                const tokenParts = token.split('.');
+                const payload = JSON.parse(atob(tokenParts[1]));
                 
-                if (response.success) {
-                    return response.data
-                } else {
-                    throw new Error(response.msg || 'Erro ao criar utilizador')
-                }
+                // Criar objeto com dados básicos do utilizador
+                return {
+                    user_id: payload.user_id,
+                    email: payload.email
+                };
             } catch (error) {
-                this.error = error.msg || 'Erro ao criar utilizador'
-                throw error
+                console.error('Erro ao extrair dados do token:', error);
+                return null;
             }
         },
 
         /**
-         * Login do utilizador
-         * @param {Object} credentials - Credenciais (login e password)
-         * @returns {Promise} Resultado do login
+         * Inicializa o estado do utilizador
+         */
+        async init() {
+            if (this.initialized) return;
+
+            try {
+                const token = localStorage.getItem('token');
+                const userDataStr = localStorage.getItem('userData');
+
+                if (token) {
+                    if (userDataStr) {
+                        // Se temos dados guardados, usar esses
+                        this.user = JSON.parse(userDataStr);
+                    } else {
+                        // Se não, extrair do token
+                        this.user = this.extractUserDataFromToken(token);
+                    }
+                    this.isAuthenticated = !!this.user;
+                }
+            } catch (error) {
+                console.error('Erro ao inicializar utilizador:', error);
+                this.logout();
+            } finally {
+                this.initialized = true;
+            }
+        },
+
+        /**
+         * Efetua login do utilizador
          */
         async login(credentials) {
             try {
-                this.error = null
+                this.error = null;
                 
-                // Adaptar credenciais para o formato esperado pelo backend
-                const loginData = {
-                    login: credentials.login || credentials.email, // Suporta ambos os formatos
-                    password: credentials.password
+                // 1. Fazer login e obter token
+                const response = await apiService.post('/users/login', credentials);
+                console.log('Resposta do login:', response);
+
+                if (!response.success || !response.accessToken) {
+                    throw new Error(response.msg || 'Erro ao efetuar login');
                 }
 
-                const response = await apiService.post('/users/login', loginData)
-                
-                if (response.success) {
-                    // Guardar dados do utilizador
-                    this.user = response.data
-                    this.isAuthenticated = true
-                    
-                    // Guardar token em localStorage
-                    localStorage.setItem('token', response.accessToken)
-                    
-                    return response
-                } else {
-                    throw new Error(response.msg || 'Erro ao efetuar login')
+                // 2. Guardar token e extrair dados do utilizador
+                const token = response.accessToken;
+                const userData = this.extractUserDataFromToken(token);
+
+                if (!userData) {
+                    throw new Error('Erro ao processar dados do utilizador');
                 }
+
+                // 3. Atualizar estado
+                localStorage.setItem('token', token);
+                localStorage.setItem('userData', JSON.stringify(userData));
+                this.user = userData;
+                this.isAuthenticated = true;
+
+                // 4. Redirecionar
+                const redirect = router.currentRoute.value.query.redirect;
+                await router.replace(redirect || '/houses');
+
+                return response;
             } catch (error) {
-                this.error = error.msg || 'Erro ao efetuar login'
-                throw error
+                this.error = error.message || 'Erro ao efetuar login';
+                console.error('Erro no login:', error);
+                this.logout();
+                throw error;
             }
         },
 
         /**
-         * Logout do utilizador
-         */
-        logout() {
-            // Limpar estado
-            this.user = null
-            this.isAuthenticated = false
-            
-            // Remover token do localStorage
-            localStorage.removeItem('token')
-        },
-
-        /**
-         * Verificar se existe uma sessão ativa
-         * @returns {boolean} Estado da sessão
+         * Verifica estado de autenticação
          */
         checkAuth() {
-            const token = localStorage.getItem('token')
-            if (token) {
-                this.isAuthenticated = true
-                return true
-            }
-            return false
+            const token = localStorage.getItem('token');
+            return !!token && this.isAuthenticated;
         },
 
         /**
-         * Limpar erro
+         * Efetua logout do utilizador
+         */
+        logout() {
+            this.user = null;
+            this.isAuthenticated = false;
+            localStorage.removeItem('token');
+            localStorage.removeItem('userData');
+
+            if (router.currentRoute.value.name !== 'login') {
+                router.push({ name: 'login' });
+            }
+        },
+
+        /**
+         * Limpa erros da store
          */
         clearError() {
-            this.error = null
+            this.error = null;
         }
     }
-})
+});

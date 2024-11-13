@@ -1,12 +1,15 @@
 <script setup>
 import { RouterView } from 'vue-router'
+import Header from '@/components/Header.vue'
 
 // Por enquanto, mantemos o App.vue simples
 // Mais tarde adicionaremos funcionalidades conforme necessário
+
 </script>
 
 <template>
   <v-app>
+    <Header />
     <v-main>
       <v-container>
         <RouterView />
@@ -16,7 +19,6 @@ import { RouterView } from 'vue-router'
 </template>
 
 <style>
-/* Estilos globais podem ser adicionados aqui */
 .v-container {
   max-width: 1280px;
   margin: 0 auto;

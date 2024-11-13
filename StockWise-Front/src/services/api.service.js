@@ -1,5 +1,4 @@
 // services/api.service.js
-
 import axios from 'axios'
 
 class ApiService {
@@ -17,16 +16,13 @@ class ApiService {
             response => response.data,
             error => {
                 if (error.response) {
-                    // O servidor respondeu com um status de erro
                     return Promise.reject(this.formatError(error.response.data))
                 } else if (error.request) {
-                    // A requisição foi feita mas não houve resposta
                     return Promise.reject({
                         success: false,
                         msg: 'Erro de conexão com o servidor. Por favor, tente novamente.'
                     })
                 } else {
-                    // Algo aconteceu na configuração da requisição
                     return Promise.reject({
                         success: false,
                         msg: 'Erro na configuração do pedido.'
@@ -38,12 +34,9 @@ class ApiService {
 
     /**
      * Formata erro para um formato consistente
-     * @param {Object} errorData - Dados do erro
-     * @returns {Object} Erro formatado
      */
     formatError(errorData) {
         if (Array.isArray(errorData.msg)) {
-            // Se for um array de erros, pega o primeiro
             return {
                 ...errorData,
                 msg: errorData.msg[0]
@@ -53,50 +46,44 @@ class ApiService {
     }
 
     /**
-     * Executa uma requisição POST
-     * @param {string} endpoint - Endpoint da API
-     * @param {Object} data - Dados a serem enviados
-     * @param {string} [token] - Token de autenticação (opcional)
-     * @returns {Promise} Resultado da requisição
+     * Obtém headers com token de autenticação
      */
-    async post(endpoint, data, token = null) {
-        try {
-            const headers = {}
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`
+    getAuthHeaders(token) {
+        return {
+            headers: {
+                'Authorization': `Bearer ${token}`
             }
-
-            if (import.meta.env.DEV) {
-                console.log(`Enviando pedido POST para ${endpoint}:`, data)
-            }
-
-            const response = await this.api.post(endpoint, data, { headers })
-            return response
-        } catch (error) {
-            throw error // Já formatado pelo interceptor
         }
     }
 
     /**
      * Executa uma requisição GET
-     * @param {string} endpoint - Endpoint da API
-     * @param {string} [token] - Token de autenticação (opcional)
-     * @returns {Promise} Resultado da requisição
      */
     async get(endpoint, token = null) {
         try {
-            const headers = {}
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`
-            }
-
-            const response = await this.api.get(endpoint, { headers })
+            const config = token ? this.getAuthHeaders(token) : {}
+            const response = await this.api.get(endpoint, config)
             return response
         } catch (error) {
-            throw error // Já formatado pelo interceptor
+            throw error
+        }
+    }
+
+    /**
+     * Executa uma requisição POST
+     */
+    async post(endpoint, data, token = null) {
+        try {
+            const config = token ? this.getAuthHeaders(token) : {}
+            if (import.meta.env.DEV) {
+                console.log(`Enviando pedido POST para ${endpoint}:`, data)
+            }
+            const response = await this.api.post(endpoint, data, config)
+            return response
+        } catch (error) {
+            throw error
         }
     }
 }
 
-// Exportar uma única instância do serviço
 export const apiService = new ApiService()
