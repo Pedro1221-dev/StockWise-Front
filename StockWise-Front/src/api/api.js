@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { useToast } from "vue-toastification";
+const toast = useToast();
 
 const api = axios.create({
   baseURL: 'http://127.0.0.1:3000/', // URL do servidor back-end
@@ -14,9 +16,11 @@ export async function post(endpoint, data, token = null, contentType = 'applicat
     }
     console.log('POST request to', endpoint, 'with data', data);
     const response = await api.post(endpoint, data, { headers: headers });
+    toast.success("Registration successful!");
     return handleResponse(response);
   } catch (error) {
     console.error(`Error posting to ${endpoint}:`, error);
+    toast.error(`Registration failed: ${error.response.data.msg}`);
     return error.response.data;
   }
 }

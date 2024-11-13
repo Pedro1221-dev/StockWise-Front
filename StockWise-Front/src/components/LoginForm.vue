@@ -3,7 +3,7 @@
     <v-img
       class="mx-auto my-6"
       max-width="228"
-      src="https://cdn.vuetifyjs.com/docs/images/logos/vuetify-logo-v3-slim-text-light.svg"
+      src="https://i.ibb.co/qCqpT2s/logo.png"
     ></v-img>
 
     <v-card
@@ -17,7 +17,7 @@
 
       <v-text-field
         density="compact"
-        placeholder="Email"
+        placeholder="Email address"
         prepend-inner-icon="mdi-email-outline"
         variant="outlined"
         v-model="form.email"
@@ -51,9 +51,6 @@
         color="surface-variant"
         variant="tonal"
       >
-        <v-card-text class="text-medium-emphasis text-caption">
-          Warning: After 3 consecutive failed login attempts, you account will be temporarily locked for three hours. If you must login now, you can also click "Forgot login password?" below to reset the login password.
-        </v-card-text>
       </v-card>
 
       <v-btn
