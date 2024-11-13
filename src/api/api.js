@@ -25,10 +25,27 @@ export async function post(endpoint, data, token = null, contentType = 'applicat
   }
 }
 
+export async function get(endpoint, token = null) {
+  try {
+    const headers = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    console.log('GET request to', endpoint);
+    const response = await api.get(endpoint, { headers: headers });
+    return handleResponse(response);
+  } catch (error) {
+    console.error(`Error getting from ${endpoint}:`, error);
+    return error.response.data;
+  }
+}
 
 async function handleResponse(response) {
   console.log('response.', response.status)
   if (response.status === 200 || response.status === 201) {
+    console.log('Response:', response.data);
     return response.data;
   } else {
     const errorBody = await response.json();
