@@ -10,13 +10,13 @@
             :rules="[v => !!v || 'House name is required']"
           ></v-text-field>
           <v-text-field
-            v-model="house.minTemp"
+            v-model="house.min_temperature"
             label="Min Temp"
             type="number"
             :rules="[v => !!v || 'Min temp is required']"
           ></v-text-field>
           <v-text-field
-            v-model="house.maxTemp"
+            v-model="house.max_temperature"
             label="Max Temp"
             type="number"
             :rules="[v => !!v || 'Max temp is required']"
@@ -29,23 +29,30 @@
 </template>
 
 <script>
+import { useHouseStore } from '../stores/house'; // Importe a store
+
 export default {
   name: 'CreateHouse',
   data() {
     return {
       house: {
         name: '',
-        minTemp: '',
-        maxTemp: ''
+        min_temperature: '',
+        max_temperature: ''
       }
     };
   },
   methods: {
-    saveHouse() {
+    async saveHouse() {
       if (this.$refs.form.validate()) {
-        // Save house data (e.g., send to API)
-        console.log('House data saved:', this.house);
-        this.$router.push({ name: 'Houses' });
+        const houseStore = useHouseStore();
+        try {
+          await houseStore.createHouse(this.house); // Envie os dados da casa para a store
+          console.log('House data saved:', this.house);
+          this.$router.push({ name: 'Houses' });
+        } catch (error) {
+          console.error('Error saving house:', error);
+        }
       }
     }
   }
