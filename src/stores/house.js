@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { get } from '../api/api.js';
+import { get,post } from '../api/api.js';
 
 export const useHouseStore = defineStore('houses', {
   state: () => ({
@@ -13,6 +13,15 @@ export const useHouseStore = defineStore('houses', {
         this.houses = response.data;
       } catch (error) {
         console.error('Error fetching houses:', error);
+      }
+    },
+    async createHouse(house) {
+      try {
+        const token = sessionStorage.getItem('accessToken');
+        const response = await post('/houses', house, token);
+        this.houses.push(response.data);
+      } catch (error) {
+        console.error('Error creating house:', error);
       }
     },
   },
