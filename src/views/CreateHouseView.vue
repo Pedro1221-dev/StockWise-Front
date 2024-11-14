@@ -1,5 +1,6 @@
 <template>
   <v-container>
+    <v-btn color="secondary" @click="goBack">Back</v-btn>
     <v-card class="mx-auto my-4" max-width="400">
       <v-card-title>Create House</v-card-title>
       <v-card-text>
@@ -30,7 +31,6 @@
 
 <script>
 export default {
-  name: 'CreateHouse',
   data() {
     return {
       house: {
@@ -41,6 +41,9 @@ export default {
     };
   },
   methods: {
+    goBack() {
+      this.$router.push({ name: 'houses' });
+    },
     saveHouse() {
       if (this.$refs.form.validate()) {
         // Save house data (e.g., send to API)

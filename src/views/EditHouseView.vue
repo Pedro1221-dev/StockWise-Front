@@ -1,5 +1,6 @@
 <template>
   <v-container>
+    <v-btn color="secondary" @click="goBack">Back</v-btn>
     <v-card class="mx-auto my-4" max-width="400">
       <v-card-title>Edit House</v-card-title>
       <v-card-text>
@@ -10,13 +11,13 @@
             :rules="[v => !!v || 'House name is required']"
           ></v-text-field>
           <v-text-field
-            v-model="house.minTemp"
+            v-model="house.min_temperature"
             label="Min Temp"
             type="number"
             :rules="[v => !!v || 'Min temp is required']"
           ></v-text-field>
           <v-text-field
-            v-model="house.maxTemp"
+            v-model="house.max_temperature"
             label="Max Temp"
             type="number"
             :rules="[v => !!v || 'Max temp is required']"
@@ -35,17 +36,20 @@ export default {
     return {
       house: {
         name: '',
-        minTemp: '',
-        maxTemp: ''
+        min_temperature: '',
+        max_temperature: ''
       }
     };
   },
   created() {
     // Load house data from route params or API
-    const { name, minTemp, maxTemp } = this.$route.params;
-    this.house = { name, minTemp, maxTemp };
+    const { name, min_temperature, max_temperature } = this.$route.params;
+    this.house = { name, min_temperature, max_temperature };
   },
   methods: {
+    goBack() {
+      this.$router.push({ name: 'houses' });
+    },
     saveHouse() {
       if (this.$refs.form.validate()) {
         // Save house data (e.g., send to API)
