@@ -24,5 +24,15 @@ export const useHouseStore = defineStore('houses', {
         console.error('Error creating house:', error);
       }
     },
+    async updateHouse(house) {
+      try {
+        const token = sessionStorage.getItem('accessToken');
+        const response = await post(`/houses/${house.id}`, house, token);
+        this.houses = this.houses.map(h => h.id === house.id ? response.data : h);
+      }
+      catch (error) {
+        console.error('Error editing house:', error);
+      }
+    },
   },
 });

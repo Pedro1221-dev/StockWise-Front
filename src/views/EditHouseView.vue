@@ -1,69 +1,54 @@
 <template>
   <v-container>
-    <v-card class="mx-auto my-4" max-width="400">
-      <v-card-title>Edit House</v-card-title>
-      <v-card-text>
-        <v-form ref="form">
-          <v-text-field
-            v-model="house.name"
-            label="House Name"
-            :rules="[v => !!v || 'House name is required']"
-          ></v-text-field>
-          <v-text-field
-            v-model="house.minTemp"
-            label="Min Temp"
-            type="number"
-            :rules="[v => !!v || 'Min temp is required']"
-          ></v-text-field>
-          <v-text-field
-            v-model="house.maxTemp"
-            label="Max Temp"
-            type="number"
-            :rules="[v => !!v || 'Max temp is required']"
-          ></v-text-field>
-          <v-btn color="primary" @click="saveHouse">Save</v-btn>
-        </v-form>
-      </v-card-text>
-    </v-card>
+    <v-form ref="form">
+      <v-text-field
+        v-model="house.name"
+        label="Name"
+        required
+      ></v-text-field>
+      <v-text-field
+        v-model="house.minTemp"
+        label="Min Temperature"
+        required
+      ></v-text-field>
+      <v-text-field
+        v-model="house.maxTemp"
+        label="Max Temperature"
+        required
+      ></v-text-field>
+      <v-btn color="primary" @click="saveHouse">Save</v-btn>
+    </v-form>
   </v-container>
 </template>
 
 <script>
+import { useHouseStore } from '../stores/house'; // Importe a store
+
 export default {
   name: 'EditHouse',
   data() {
     return {
       house: {
+        id: this.$route.params.id, // Obtenha o ID da casa dos parâmetros da rota
         name: '',
         minTemp: '',
         maxTemp: ''
       }
     };
   },
-  created() {
-    // Load house data from route params or API
-    const { name, minTemp, maxTemp } = this.$route.params;
-    this.house = { name, minTemp, maxTemp };
-  },
   methods: {
-    saveHouse() {
+    async saveHouse() {
       if (this.$refs.form.validate()) {
-        // Save house data (e.g., send to API)
-        console.log('House data saved:', this.house);
-        this.$router.push({ name: 'Houses' });
+        const houseStore = useHouseStore();
+        try {
+          await houseStore.updateHouse(this.house); // Envie os dados atualizados da casa para a store
+          console.log('House data saved:', this.house);
+          this.$router.push({ name: 'Houses' });
+        } catch (error) {
+          console.error('Error saving house:', error);
+        }
       }
     }
   }
 };
 </script>
-
-<style scoped>
-.mx-auto {
-  margin-left: auto;
-  margin-right: auto;
-}
-.my-4 {
-  margin-top: 16px;
-  margin-bottom: 16px;
-}
-</style>
