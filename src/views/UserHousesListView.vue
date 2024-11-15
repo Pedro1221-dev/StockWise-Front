@@ -6,8 +6,8 @@
       <v-col v-for="house in houses" :key="house.id" cols="12" md="6">
         <userHouseCard
           :name="house.name"
-          :minTemp="house.minTemp"
-          :maxTemp="house.maxTemp"
+          :min_temperature="house.min_temperature"
+          :max_temperature="house.max_temperature"
         />
       </v-col>
     </v-row>

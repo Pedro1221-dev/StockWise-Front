@@ -1,4 +1,5 @@
 <template>
+    <v-btn color="secondary" @click="goBack">Back</v-btn>
     <div class="house-details">
         <h1>{{ house.name }}</h1>
         <p>{{ house.description }}</p>
@@ -23,6 +24,9 @@ export default {
         };
     },
     methods: {
+        goBack() {
+        this.$router.push({ name: 'houses' });
+        },
         editHouse() {
             // Logic to edit the house details
             console.log('Edit house details');

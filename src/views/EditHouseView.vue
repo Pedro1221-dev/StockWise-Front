@@ -1,23 +1,31 @@
 <template>
   <v-container>
-    <v-form ref="form">
-      <v-text-field
-        v-model="house.name"
-        label="Name"
-        required
-      ></v-text-field>
-      <v-text-field
-        v-model="house.minTemp"
-        label="Min Temperature"
-        required
-      ></v-text-field>
-      <v-text-field
-        v-model="house.maxTemp"
-        label="Max Temperature"
-        required
-      ></v-text-field>
-      <v-btn color="primary" @click="saveHouse">Save</v-btn>
-    </v-form>
+    <v-btn color="secondary" @click="goBack">Back</v-btn>
+    <v-card class="mx-auto my-4" max-width="400">
+      <v-card-title>Edit House</v-card-title>
+      <v-card-text>
+        <v-form ref="form">
+          <v-text-field
+            v-model="house.name"
+            label="House Name"
+            :rules="[v => !!v || 'House name is required']"
+          ></v-text-field>
+          <v-text-field
+            v-model="house.min_temperature"
+            label="Min Temp"
+            type="number"
+            :rules="[v => !!v || 'Min temp is required']"
+          ></v-text-field>
+          <v-text-field
+            v-model="house.max_temperature"
+            label="Max Temp"
+            type="number"
+            :rules="[v => !!v || 'Max temp is required']"
+          ></v-text-field>
+          <v-btn color="primary" @click="saveHouse">Save</v-btn>
+        </v-form>
+      </v-card-text>
+    </v-card>
   </v-container>
 </template>
 
@@ -31,12 +39,15 @@ export default {
       house: {
         id: this.$route.params.id, // Obtenha o ID da casa dos parâmetros da rota
         name: '',
-        minTemp: '',
-        maxTemp: ''
+        min_temperature: '',
+        max_temperature: ''
       }
     };
   },
   methods: {
+    goBack() {
+      this.$router.push({ name: 'houses' });
+    },
     async saveHouse() {
       if (this.$refs.form.validate()) {
         const houseStore = useHouseStore();

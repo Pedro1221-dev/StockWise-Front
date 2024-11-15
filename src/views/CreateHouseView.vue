@@ -1,5 +1,6 @@
 <template>
   <v-container>
+    <v-btn color="secondary" @click="goBack">Back</v-btn>
     <v-card class="mx-auto my-4" max-width="400">
       <v-card-title>Create House</v-card-title>
       <v-card-text>
@@ -32,7 +33,6 @@
 import { useHouseStore } from '../stores/house'; // Importe a store
 
 export default {
-  name: 'CreateHouse',
   data() {
     return {
       house: {
@@ -43,6 +43,9 @@ export default {
     };
   },
   methods: {
+    goBack() {
+      this.$router.push({ name: 'houses' });
+    },
     async saveHouse() {
       if (this.$refs.form.validate()) {
         const houseStore = useHouseStore();
