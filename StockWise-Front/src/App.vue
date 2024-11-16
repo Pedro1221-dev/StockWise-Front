@@ -1,12 +1,4 @@
-<script setup>
-import { RouterView } from 'vue-router'
-import Header from '@/components/Header.vue'
-
-// Por enquanto, mantemos o App.vue simples
-// Mais tarde adicionaremos funcionalidades conforme necessário
-
-</script>
-
+//App.vue
 <template>
   <v-app>
     <Header />
@@ -18,10 +10,20 @@ import Header from '@/components/Header.vue'
   </v-app>
 </template>
 
-<style>
-.v-container {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-</style>
+<script setup>
+import { onMounted } from 'vue';
+import { RouterView } from 'vue-router';
+import { useUserStore } from '@/stores/user';
+import { useHousesStore } from '@/stores/houses';
+import Header from '@/components/Header.vue';
+
+const userStore = useUserStore();
+const housesStore = useHousesStore();
+
+onMounted(async () => {
+    await userStore.init();
+    if (userStore.isAuthenticated) {
+        await housesStore.fetchUserHouses(true);
+    }
+});
+</script>

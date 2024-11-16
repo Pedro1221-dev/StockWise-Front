@@ -1,117 +1,170 @@
 // stores/alerts.js
 import { defineStore } from 'pinia';
 import { mqttService } from '@/services/mqtt.service';
-
+import { useHousesStore } from './houses';
 export const useAlertsStore = defineStore('alerts', {
-  state: () => ({
-    alerts: new Map(), // Map de house_id -> array de alertas
-    unreadCount: 0,
-    temperatureStates: new Map() // Controle de estados de temperatura por casa
-  }),
+    state: () => ({
+        alerts: [], // Array de alertas ativos
+        subscribedHouses: new Set(), // Set de house_ids subscritos
+        unreadCount: 0
+    }),
 
-  getters: {
-    hasUnreadAlerts: state => state.unreadCount > 0,
-    getHouseAlerts: state => houseId => state.alerts.get(houseId) || []
+    getters: {
+        hasUnreadAlerts: (state) => state.unreadCount > 0,
+        
+        getActiveAlerts: (state) => (houseId) => 
+            state.alerts.filter(alert => 
+                alert.houseId === houseId && !alert.dismissed
+            ),
+
+            getHouseName: () => (houseId) => {
+              const housesStore = useHousesStore();
+              const house = housesStore.houses.find(h => h.house_id === houseId);
+              return house ? house.name : `Casa ${houseId}`;
+          }
+    },
+
+    actions: {
+        /**
+         * Subscreve aos alertas de uma casa
+         */
+        subscribeToHouseAlerts(houseId) {
+            if (this.subscribedHouses.has(houseId)) return;
+
+            const topic = `house/${houseId}/alerts/temperature`;
+            console.log(`[AlertsStore] Subscrevendo a alertas da casa ${houseId}`);
+
+            mqttService.subscribe(topic, (message) => {
+                console.log(`[AlertsStore] Alerta recebido para casa ${houseId}:`, message);
+                this.handleAlert(houseId, message);
+            });
+
+            this.subscribedHouses.add(houseId);
+        },
+
+        /**
+         * Processa um alerta recebido
+         */
+     /**
+         * Processa um alerta recebido
+         */
+     handleAlert(houseId, message) {
+      const alertTypes = {
+          'high_temperature': {
+              title: 'Temperatura Alta',
+              severity: 'error',
+              formatMessage: (data, houseName) => 
+                  `${houseName}: Temperatura ${data.value.toFixed(1)}°C acima do limite de ${data.threshold}°C`
+          },
+          'low_temperature': {
+              title: 'Temperatura Baixa',
+              severity: 'warning',
+              formatMessage: (data, houseName) => 
+                  `${houseName}: Temperatura ${data.value.toFixed(1)}°C abaixo do limite de ${data.threshold}°C`
+          },
+          'temperature_normalized': {
+              title: 'Temperatura Normalizada',
+              severity: 'success',
+              formatMessage: (data, houseName) => 
+                  `${houseName}: Temperatura ${data.value.toFixed(1)}°C retornou aos limites normais (${data.threshold}°C)`
+          }
+      };
+
+      const alertConfig = alertTypes[message.type];
+      if (!alertConfig) {
+          console.warn(`[AlertsStore] Tipo de alerta desconhecido:`, message.type);
+          return;
+      }
+
+      const houseName = this.getHouseName(houseId);
+
+      const newAlert = {
+          id: Date.now(),
+          houseId,
+          houseName,
+          type: message.type,
+          category: 'temperature',
+          title: `${houseName} - ${alertConfig.title}`,
+          message: alertConfig.formatMessage(message, houseName),
+          severity: message.severity || alertConfig.severity,
+          timestamp: message.timestamp,
+          read: false,
+          dismissed: false,
+          value: message.value
+      };
+
+      console.log(`[AlertsStore] Criando novo alerta:`, newAlert);
+      this.createAlert(newAlert);
   },
 
-  actions: {
-    initializeHouseState(houseId) {
-      if (!this.temperatureStates.has(houseId)) {
-        this.temperatureStates.set(houseId, {
-          outOfRangeCount: 0,
-          inRangeCount: 0,
-          isAlertActive: false,
-          lastAlertTime: null
-        });
-      }
-    },
 
-    processTemperatureReading(houseId, temperature, configs) {
-      const state = this.temperatureStates.get(houseId);
-      if (!state) return;
+        /**
+         * Adiciona um novo alerta
+         */
+        createAlert(alert) {
+            // Adicionar ao início da lista
+            this.alerts.unshift(alert);
+            this.unreadCount++;
 
-      const { min_temperature, max_temperature, buffer_zone } = configs;
-      const isOutOfRange = temperature < (min_temperature - buffer_zone) || 
-                          temperature > (max_temperature + buffer_zone);
+            console.log(`[AlertsStore] Alerta criado, total não lidos:`, this.unreadCount);
+            console.log(`[AlertsStore] Alertas ativos:`, this.alerts);
+        },
 
-      if (isOutOfRange) {
-        state.outOfRangeCount++;
-        state.inRangeCount = 0;
-      } else {
-        state.inRangeCount++;
-        state.outOfRangeCount = 0;
-      }
+        /**
+         * Marca um alerta como lido
+         */
+        markAsRead(alertId) {
+            const alert = this.alerts.find(a => a.id === alertId);
+            if (alert && !alert.read) {
+                alert.read = true;
+                this.unreadCount = Math.max(0, this.unreadCount - 1);
+            }
+        },
 
-      // Gerar alerta após 3 leituras consecutivas fora do range
-      if (state.outOfRangeCount >= 3 && !state.isAlertActive) {
-        this.createTemperatureAlert(houseId, temperature, configs);
-        state.isAlertActive = true;
-      }
+        /**
+         * Marca todos os alertas como lidos
+         */
+        markAllAsRead() {
+            this.alerts.forEach(alert => {
+                if (!alert.read) {
+                    alert.read = true;
+                }
+            });
+            this.unreadCount = 0;
+        },
 
-      // Normalizar após 3 leituras consecutivas dentro do range
-      if (state.inRangeCount >= 3 && state.isAlertActive) {
-        this.createNormalizationAlert(houseId, temperature);
-        state.isAlertActive = false;
-      }
-    },
+        /**
+         * Descarta um alerta
+         */
+        dismissAlert(alertId) {
+            const alert = this.alerts.find(a => a.id === alertId);
+            if (alert) {
+                alert.dismissed = true;
+                if (!alert.read) {
+                    alert.read = true;
+                    this.unreadCount--;
+                }
+            }
+        },
 
-    createTemperatureAlert(houseId, temperature, configs) {
-      const alert = {
-        id: Date.now(),
-        type: 'temperature',
-        severity: 'high',
-        message: `Temperatura ${temperature.toFixed(1)}°C ${
-          temperature > configs.max_temperature ? 'acima' : 'abaixo'
-        } do limite`,
-        timestamp: new Date().toISOString(),
-        read: false,
-        houseId
-      };
-
-      this.addAlert(houseId, alert);
-    },
-
-    createNormalizationAlert(houseId, temperature) {
-      const alert = {
-        id: Date.now(),
-        type: 'temperature',
-        severity: 'info',
-        message: `Temperatura normalizada: ${temperature.toFixed(1)}°C`,
-        timestamp: new Date().toISOString(),
-        read: false,
-        houseId
-      };
-
-      this.addAlert(houseId, alert);
-    },
-
-    addAlert(houseId, alert) {
-      if (!this.alerts.has(houseId)) {
-        this.alerts.set(houseId, []);
-      }
-      this.alerts.get(houseId).unshift(alert);
-      this.unreadCount++;
-    },
-
-    markAsRead(alertId) {
-      this.alerts.forEach(houseAlerts => {
-        const alert = houseAlerts.find(a => a.id === alertId);
-        if (alert && !alert.read) {
-          alert.read = true;
-          this.unreadCount--;
+                /**
+         * Limpa todos os alertas
+         */
+                clearAllAlerts() {
+                  console.log('[AlertsStore] Limpando todos os alertas');
+                  this.alerts = [];
+                  this.unreadCount = 0;
+              },
+        /**
+         * Limpa todos os alertas e subscrições
+         */
+        clearAll() {
+            this.subscribedHouses.forEach(houseId => {
+                mqttService.unsubscribe(`house/${houseId}/alerts/temperature`);
+            });
+            this.subscribedHouses.clear();
+            this.alerts = [];
+            this.unreadCount = 0;
         }
-      });
-    },
-
-    markAllAsRead() {
-      this.alerts.forEach(houseAlerts => {
-        houseAlerts.forEach(alert => {
-          if (!alert.read) {
-            alert.read = true;
-          }
-        });
-      });
-      this.unreadCount = 0;
     }
-  }
 });

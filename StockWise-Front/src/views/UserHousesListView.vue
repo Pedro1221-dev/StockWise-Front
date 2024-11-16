@@ -1,3 +1,4 @@
+// views/UserHousesListView.vue
 <template>
   <div>
     <!-- Loading state -->
@@ -114,85 +115,58 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useHousesStore } from '@/stores/houses'
-import UserHouseCard from '@/components/UserHouseCard.vue'
-import { TemperatureSimulator } from '@/utils/temperatureSimulator';
+import { ref, computed } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useHousesStore } from '@/stores/houses';
+import UserHouseCard from '@/components/UserHouseCard.vue';
 
-const housesStore = useHousesStore()
-const { houses, loading, error } = storeToRefs(housesStore)
-const hasHouses = computed(() => houses.value.length > 0)
-const simulators = ref(new Map());
+const housesStore = useHousesStore();
+const { houses, loading, error } = storeToRefs(housesStore);
+const hasHouses = computed(() => houses.value.length > 0);
 
-// Form refs and state
-const form = ref(null)
-const isValid = ref(false)
-const showRegisterDialog = ref(false)
-const registerLoading = ref(false)
+// Form refs e state
+const form = ref(null);
+const isValid = ref(false);
+const showRegisterDialog = ref(false);
+const registerLoading = ref(false);
 
 // Nova casa
 const newHouse = ref({
   name: '',
   min_temperature: '',
   max_temperature: ''
-})
+});
 
 // Regras de validação
 const temperatureRules = [
   v => !!v || 'Temperatura é obrigatória',
   v => !isNaN(v) || 'Temperatura deve ser um número',
   v => v >= 0 || 'Temperatura deve ser maior ou igual a 0'
-]
+];
 
 // Métodos
-const fetchHouses = async () => {
-  try {
-    await housesStore.fetchUserHouses()
-  } catch (error) {
-    console.error('Erro ao carregar casas:', error)
-  }
-}
+const fetchHouses = () => {
+  housesStore.fetchUserHouses(true);
+};
 
 const registerHouse = async () => {
-  if (!form.value?.validate()) return
+  if (!form.value?.validate()) return;
 
-  registerLoading.value = true
+  registerLoading.value = true;
   try {
-    await housesStore.registerHouse(newHouse.value)
-    showRegisterDialog.value = false
-    newHouse.value = { name: '', min_temperature: '', max_temperature: '' }
+    await housesStore.registerHouse(newHouse.value);
+    showRegisterDialog.value = false;
+    newHouse.value = { name: '', min_temperature: '', max_temperature: '' };
   } catch (error) {
-    console.error('Erro ao registar casa:', error)
+    console.error('Erro ao registar casa:', error);
   } finally {
-    registerLoading.value = false
+    registerLoading.value = false;
   }
-}
+};
 
 const clearError = () => {
-  housesStore.error = null
-}
-
-// Carregar casas ao montar o componente
-onMounted(async () => {
-    await fetchHouses();
-    
-    // Iniciar simuladores apenas após carregar as casas
-    houses.value.forEach(house => {
-        if (!simulators.value.has(house.house_id)) {
-            console.log(`Iniciando simulador para casa ${house.house_id}`);
-            const simulator = new TemperatureSimulator(house.house_id);
-            simulator.start();
-            simulators.value.set(house.house_id, simulator);
-        }
-    });
-});
-
-onBeforeUnmount(() => {
-  // Parar simuladores
-  simulators.value.forEach(simulator => simulator.stop());
-  simulators.value.clear();
-});
+  housesStore.error = null;
+};
 </script>
 
 <style scoped>

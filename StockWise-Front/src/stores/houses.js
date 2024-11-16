@@ -1,46 +1,28 @@
 // stores/houses.js
-import { defineStore } from 'pinia'
-import { housesService } from '@/services/houses.service'
-import { useUserStore } from './user'
+import { defineStore } from 'pinia';
+import { housesService } from '@/services/houses.service';
+import { useUserStore } from './user';
+import { mqttService } from '@/services/mqtt.service';
+import { TemperatureSimulator } from '@/utils/temperatureSimulator';
+import { useTemperatureStore } from './temperature';
+import { useAlertsStore } from './alerts';
+import { alertsMonitor } from '@/services/alertsMonitor.service';
 
 export const useHousesStore = defineStore('houses', {
     state: () => ({
         houses: [],
         loading: false,
         error: null,
-        lastFetch: null
+        lastFetch: null,
+        simulators: new Map() // house_id -> simulator
     }),
 
-    getters: {
-        getHouses: (state) => state.houses,
-        hasHouses: (state) => state.houses.length > 0,
-        needsRefresh: (state) => !state.lastFetch || (Date.now() - state.lastFetch) > 300000 // 5 minutos
-    },
-
     actions: {
-        /**
-         * Carrega as casas do utilizador
-         * @param {boolean} force - Força recarregamento mesmo se cache existe
-         */
         async fetchUserHouses(force = false) {
-            // Se já temos dados recentes e não é forçado, retornar
-            if (!force && !this.needsRefresh && this.houses.length > 0) {
-                return;
-            }
+            if (!force && this.houses.length > 0) return;
 
-            this.loading = true;
-            this.error = null;
-            
             try {
                 const userStore = useUserStore();
-                // Garantir que o userStore está inicializado
-                await userStore.init();
-
-                if (!userStore.isAuthenticated) {
-                    throw new Error('Utilizador não autenticado');
-                }
-
-                // Garantir que temos o token e user_id
                 const token = localStorage.getItem('token');
                 const userId = userStore.user?.user_id;
 
@@ -49,60 +31,86 @@ export const useHousesStore = defineStore('houses', {
                 }
 
                 const response = await housesService.getUserHouses(userId, token);
-
-                if (response.success) {
-                    this.houses = response.data;
-                    this.lastFetch = Date.now();
-                } else {
-                    throw new Error(response.msg || 'Erro ao obter casas');
-                }
-            } catch (error) {
-                this.error = error.message || 'Erro ao carregar casas';
-                console.error('Erro ao carregar casas:', error);
-                throw error;
-            } finally {
-                this.loading = false;
-            }
-        },
-
-        /**
-         * Regista uma nova casa
-         */
-        async registerHouse(houseData) {
-            this.loading = true;
-            this.error = null;
-
-            try {
-                const userStore = useUserStore();
-                if (!userStore.isAuthenticated) {
-                    throw new Error('Utilizador não autenticado');
-                }
-
-                const token = localStorage.getItem('token');
-                const response = await housesService.registerHouse(houseData, token);
                 
                 if (response.success) {
-                    // Adicionar nova casa e atualizar timestamp
-                    this.houses.push(response.data);
-                    this.lastFetch = Date.now();
-                    return response.data;
-                } else {
-                    throw new Error(response.msg || 'Erro ao registar casa');
+                    this.houses = response.data;
+                    await this.initializeHouseServices();
+
+                    // Inicializar sistema de alertas
+                    this.initializeAlertSystem();
                 }
             } catch (error) {
-                this.error = error.message || 'Erro ao registar casa';
+                console.error('Erro ao carregar casas:', error);
                 throw error;
-            } finally {
-                this.loading = false;
+            }
+        },
+
+        async initializeHouseServices() {
+            try {
+                // Garantir conexão MQTT
+                if (mqttService.connectionStatus !== 'connected') {
+                    await mqttService.connect();
+                }
+
+                // Inicializar serviços para cada casa
+                for (const house of this.houses) {
+                    // Criar e iniciar simulador
+                    if (!this.simulators.has(house.house_id)) {
+                        const simulator = new TemperatureSimulator(house.house_id);
+                        simulator.start();
+                        this.simulators.set(house.house_id, simulator);
+                    }
+
+                    // Subscrever ao tópico de temperatura
+                    const topic = `house/${house.house_id}/temperature`;
+                    mqttService.subscribe(topic, (data) => {
+                        console.log(`Temperatura recebida para casa ${house.house_id}:`, data);
+                        useTemperatureStore().updateTemperature(house.house_id, {
+                            value: data.temperature,
+                            timestamp: data.timestamp
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao inicializar serviços:', error);
+                throw error;
             }
         },
 
         /**
-         * Limpa o estado das casas
+         * Inicializa o sistema de alertas para todas as casas
          */
-        clearHouses() {
+        initializeAlertSystem() {
+            const alertsStore = useAlertsStore();
+            
+            for (const house of this.houses) {
+                // Iniciar monitorização de temperatura para alertas
+                alertsMonitor.startMonitoring(house);
+                
+                // Subscrever aos alertas na store
+                alertsStore.subscribeToHouseAlerts(house.house_id);
+            }
+        },
+
+        clearAllServices() {
+            // Parar simuladores
+            this.simulators.forEach(simulator => simulator.stop());
+            this.simulators.clear();
+
+            // Limpar subscrições MQTT
+            this.houses.forEach(house => {
+                const topic = `house/${house.house_id}/temperature`;
+                mqttService.unsubscribe(topic);
+            });
+
+            // Parar monitorizações de alertas
+            alertsMonitor.cleanup();
+            
+            // Limpar alertas
+            useAlertsStore().clearAll();
+
+            // Limpar dados
             this.houses = [];
-            this.error = null;
             this.lastFetch = null;
         }
     }

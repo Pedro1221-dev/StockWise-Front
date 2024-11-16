@@ -1,177 +1,183 @@
-<!-- views/HouseMonitorView.vue -->
+// views/HouseMonitorView.vue
 <template>
     <div>
-      <!-- Loading state -->
-      <v-progress-linear
-        v-if="loading"
-        indeterminate
-        color="primary"
-      ></v-progress-linear>
-  
-      <!-- Error state -->
-      <v-alert
-        v-if="error"
-        type="error"
-        variant="tonal"
-        closable
-        class="mb-4"
-        @click:close="clearError"
-      >
-        {{ error }}
-      </v-alert>
-  
-      <!-- House Details Header -->
-      <div v-if="house" class="d-flex align-center mb-6">
-        <div>
-          <h1 class="text-h4 mb-2">{{ house.name }}</h1>
-          <div class="d-flex align-center">
-            <!-- Temperature Display -->
-            <v-chip
-              :color="temperatureColor"
-              class="mr-4"
-            >
-              <template v-slot:prepend>
-                <v-icon :color="temperatureColor">
-                  {{ temperatureIcon }}
-                </v-icon>
-              </template>
-              {{ formattedTemperature }}
-            </v-chip>
-  
-            <!-- House Details -->
-            <span class="text-body-1 grey--text">
-              Limites: {{ house.min_temperature }}°C - {{ house.max_temperature }}°C
-            </span>
-          </div>
-        </div>
-      </div>
-  
-      <!-- Shelves Grid -->
-      <v-row v-if="house?.shelves?.length">
-        <v-col
-          v-for="shelf in house.shelves"
-          :key="shelf.shelf_id"
-          cols="12"
-          md="6"
+        <!-- Loading state -->
+        <v-progress-linear
+            v-if="loading"
+            indeterminate
+            color="primary"
+        ></v-progress-linear>
+
+        <!-- Error state -->
+        <v-alert
+            v-if="error"
+            type="error"
+            variant="tonal"
+            closable
+            class="mb-4"
+            @click:close="clearError"
         >
-          <ShelfCard
-            :shelf="shelf"
-            @update="fetchHouseData"
-          />
-        </v-col>
-      </v-row>
-  
-      <!-- No Shelves State -->
-      <v-card
-        v-else-if="!loading"
-        class="text-center pa-6"
-      >
-        <v-card-text>
-          <p class="text-h6 mb-2">Sem Prateleiras</p>
-          <p class="text-body-1">Esta casa ainda não tem prateleiras configuradas.</p>
-        </v-card-text>
-      </v-card>
+            {{ error }}
+        </v-alert>
+
+        <!-- House Details Header -->
+        <div v-if="house" class="d-flex flex-column mb-6">
+            <div class="d-flex align-center justify-space-between mb-4">
+                <h1 class="text-h4">{{ house.name }}</h1>
+                
+                <!-- Temperature Display -->
+                <v-chip
+                    :color="temperatureColor"
+                    size="large"
+                    class="pa-4"
+                >
+                    <template v-slot:prepend>
+                        <v-icon :color="temperatureColor" class="mr-2">
+                            {{ temperatureIcon }}
+                        </v-icon>
+                    </template>
+                    <div class="d-flex flex-column">
+                        <span class="font-weight-bold">{{ formattedTemperature }}</span>
+                        <span class="text-caption">
+                            Limite: {{ house.min_temperature }}°C - {{ house.max_temperature }}°C
+                        </span>
+                    </div>
+                </v-chip>
+            </div>
+
+            <!-- Alertas de Temperatura -->
+            <v-alert
+                v-if="!isTemperatureInRange && currentTemperature"
+                density="compact"
+                type="warning"
+                variant="tonal"
+                class="mb-4"
+            >
+                <template v-slot:prepend>
+                    <v-icon>mdi-alert</v-icon>
+                </template>
+                Temperatura fora dos limites definidos!
+            </v-alert>
+        </div>
+
+        <!-- Shelves Grid -->
+        <v-row v-if="house?.Shelves?.length">
+            <v-col
+                v-for="shelf in house.Shelves"
+                :key="shelf.shelf_id"
+                cols="12"
+                md="6"
+                lg="4"
+            >
+                <ShelfCard
+                    :shelf="shelf"
+                    :house-id="house.house_id"
+                />
+            </v-col>
+        </v-row>
+
+        <!-- No Shelves State -->
+        <v-card
+            v-else-if="!loading && house"
+            class="text-center pa-6"
+        >
+            <v-card-title class="text-h6 mb-2">
+                Sem Prateleiras
+            </v-card-title>
+            <v-card-text>
+                <p class="text-body-1">Esta casa ainda não tem prateleiras configuradas.</p>
+            </v-card-text>
+        </v-card>
     </div>
-  </template>
-  
-  <script setup>
-  import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-  import { useRoute, useRouter } from 'vue-router'
-  import { useTemperatureStore } from '@/stores/temperature'
-  import { mqttService } from '@/services/mqtt.service'
-  import ShelfCard from '@/components/ShelfCard.vue'
-  
-  // Route & House Data
-  const route = useRoute()
-  const router = useRouter()
-  const houseId = computed(() => route.params.id)
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useTemperatureStore } from '@/stores/temperature'
+import { housesService } from '@/services/houses.service'
+import ShelfCard from '@/components/ShelfCard.vue'
+
+// Router e stores
+const route = useRoute()
+const router = useRouter()
+const temperatureStore = useTemperatureStore()
+
+// Estado local
 const house = ref(null)
 const loading = ref(true)
 const error = ref(null)
 
-  
-  // Temperature Store
-  const temperatureStore = useTemperatureStore()
-  
-  // Computed Properties
-  const currentTemperature = computed(() => 
-    temperatureStore.getHouseTemperature(houseId)
-  )
-  
-  const formattedTemperature = computed(() => {
-    const temp = currentTemperature.value
-    return temp !== null ? `${temp.toFixed(1)}°C` : 'Aguardando...'
-  })
-  
-  const isTemperatureInRange = computed(() => {
-    if (!house.value || !currentTemperature.value) return true
+// Computed properties para temperatura
+const currentTemperature = computed(() => {
+    console.log('Buscando temperatura para casa:', route.params.id);
+    const temp = temperatureStore.getHouseTemperature(Number(route.params.id));
+    console.log('Temperatura obtida:', temp);
+    return temp;
+});
+
+const formattedTemperature = computed(() => {
+    const temp = currentTemperature.value;
+    console.log('Formatando temperatura:', temp);
+    return temp !== null ? `${temp.toFixed(1)}°C` : 'Aguardando...';
+});
+
+const isTemperatureInRange = computed(() => {
+    if (!house.value || currentTemperature.value === null) return true;
     return temperatureStore.isTemperatureInRange(
-      houseId,
-      house.value.min_temperature,
-      house.value.max_temperature
-    )
-  })
-  
-  const temperatureIcon = computed(() => {
-    if (!currentTemperature.value) return 'mdi-thermometer'
-    return isTemperatureInRange.value ? 'mdi-thermometer' : 'mdi-alert-circle'
-  })
-  
-  const temperatureColor = computed(() => {
-    if (!currentTemperature.value) return 'grey'
-    return isTemperatureInRange.value ? 'primary' : 'error'
-  })
-  
-  // Methods
-  const fetchHouseData = async () => {
-  try {
-    loading.value = true
-    error.value = null
+        Number(route.params.id),
+        Number(house.value.min_temperature),
+        Number(house.value.max_temperature)
+    );
+});
 
-    const response = await fetch(`/api/houses/${houseId.value}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    })
+const temperatureIcon = computed(() => {
+    if (!currentTemperature.value) return 'mdi-thermometer';
+    return isTemperatureInRange.value ? 'mdi-thermometer' : 'mdi-alert-circle';
+});
 
-    if (!response.ok) {
-      throw new Error('Erro ao carregar dados da casa')
+const temperatureColor = computed(() => {
+    if (!currentTemperature.value) return 'grey';
+    return isTemperatureInRange.value ? 'success' : 'error';
+});
+
+// Métodos
+const fetchHouseData = async () => {
+    try {
+        loading.value = true;
+        error.value = null;
+
+        const token = localStorage.getItem('token');
+        const response = await housesService.getHouseDetails(route.params.id, token);
+
+        if (!response.success) {
+            throw new Error(response.message || 'Erro ao carregar dados da casa');
+        }
+
+        house.value = response.data;
+        console.log('Dados da casa carregados:', house.value);
+
+    } catch (err) {
+        console.error('Erro ao carregar casa:', err);
+        error.value = err.message;
+        router.push({ name: 'houses' });
+    } finally {
+        loading.value = false;
     }
+};
 
-    const data = await response.json()
-    if (!data.success) {
-      throw new Error(data.message)
-    }
+const clearError = () => {
+    error.value = null;
+};
 
-    house.value = data.data
+// Lifecycle hooks
+onMounted(async () => {
+    await fetchHouseData();
+});
+</script>
 
-  } catch (err) {
-    console.error('Erro ao carregar casa:', err)
-    error.value = err.message
-    // Redirecionar para a lista de casas em caso de erro
-    router.push({ name: 'houses' })
-  } finally {
-    loading.value = false
-  }
+<style scoped>
+.temperature-info {
+    font-size: 1.1rem;
 }
-  
-  const clearError = () => {
-    error.value = null
-  }
-  
-  // Lifecycle Hooks
-  onMounted(async () => {
-  try {
-   // await fetchHouseData()
-    if (house.value) {
-      await temperatureStore.subscribeToHouseTemperature(house.value)
-    }
-  } catch (err) {
-    console.error('Erro ao montar componente:', err)
-    error.value = 'Erro ao carregar dados da casa'
-  }
-})
-  onBeforeUnmount(() => {
-    temperatureStore.unsubscribeFromHouseTemperature(houseId)
-  })
-  </script>
+</style>

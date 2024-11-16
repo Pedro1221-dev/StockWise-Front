@@ -5,13 +5,19 @@ class MQTTService {
     constructor() {
         this.client = null;
         this.subscribers = new Map();
+        this.connectionStatus = 'disconnected';
     }
 
     async connect() {
+        if (this.connectionStatus === 'connected') {
+            console.log('Cliente MQTT já conectado');
+            return;
+        }
+
         try {
-            console.log('Iniciando conexão MQTT...');
-            
-            // Configuração do cliente
+            console.log('Conectando ao broker MQTT...');
+            this.connectionStatus = 'connecting';
+
             const options = {
                 clientId: 'stockwise_' + Math.random().toString(16).slice(2, 8),
                 clean: true,
@@ -19,89 +25,80 @@ class MQTTService {
                 reconnectPeriod: 1000
             };
 
-            // Conectar ao broker
             this.client = mqtt.connect('ws://localhost:9001', options);
 
-            // Handler de conexão
             this.client.on('connect', () => {
                 console.log('✓ Conectado ao broker MQTT');
+                this.connectionStatus = 'connected';
+                this.resubscribeAll();
             });
 
-            // Handler de erro
-            this.client.on('error', (error) => {
-                console.error('Erro MQTT:', error);
-            });
-
-            // Handler de mensagem
-
-this.client.on('message', (topic, message) => {
-    try {
-        const callbacks = this.subscribers.get(topic);
-        if (callbacks) {
-            const parsedMessage = JSON.parse(message.toString());
-            callbacks.forEach(callback => {
+            this.client.on('message', (topic, message) => {
                 try {
-                    callback(parsedMessage);
+                    const callbacks = this.subscribers.get(topic);
+                    if (callbacks) {
+                        const parsedMessage = JSON.parse(message.toString());
+                        callbacks.forEach(callback => callback(parsedMessage));
+                    }
                 } catch (error) {
-                    console.error('Erro no callback do tópico:', topic, error);
+                    console.error('Erro ao processar mensagem MQTT:', error);
                 }
             });
-        }
-    } catch (error) {
-        console.error('Erro ao processar mensagem MQTT:', error, {
-            topic,
-            message: message.toString()
-        });
-    }
-});
 
         } catch (error) {
             console.error('Erro ao conectar ao broker MQTT:', error);
+            this.connectionStatus = 'error';
             throw error;
         }
     }
 
-    // Subscrever a um tópico
     subscribe(topic, callback) {
-        if (!this.client) {
-            throw new Error('Cliente MQTT não inicializado');
-        }
-    
         if (!this.subscribers.has(topic)) {
             this.subscribers.set(topic, new Set());
+            this.client.subscribe(topic, { qos: 1 });
         }
         this.subscribers.get(topic).add(callback);
-    
-        // Adicionar QoS na subscrição
-        this.client.subscribe(topic, { qos: 1 }, (error) => {
-            if (error) {
-                console.error(`Erro ao subscrever ao tópico ${topic}:`, error);
-            } else {
-                console.log(`Subscrito ao tópico: ${topic}`);
-            }
-        });
+        console.log(`Subscrito ao tópico: ${topic}`);
     }
 
-    // Publicar mensagem
     publish(topic, message) {
-        if (!this.client) {
-            throw new Error('Cliente MQTT não inicializado');
-        }
+        if (!this.client?.connected) return;
+        
+        const messageStr = typeof message === 'string' ? 
+            message : JSON.stringify(message);
 
-        this.client.publish(topic, message, {}, (error) => {
-            if (error) {
-                console.error(`Erro ao publicar no tópico ${topic}:`, error);
-            }
-        });
+        this.client.publish(topic, messageStr, { qos: 1 });
     }
 
-    // Limpar recursos
+    unsubscribe(topic, callback) {
+        const callbacks = this.subscribers.get(topic);
+        if (!callbacks) return;
+
+        if (callback) {
+            callbacks.delete(callback);
+            if (callbacks.size === 0) {
+                this.subscribers.delete(topic);
+                this.client?.unsubscribe(topic);
+            }
+        } else {
+            this.subscribers.delete(topic);
+            this.client?.unsubscribe(topic);
+        }
+    }
+
+    resubscribeAll() {
+        for (const [topic] of this.subscribers) {
+            this.client.subscribe(topic, { qos: 1 });
+        }
+    }
+
     cleanup() {
         if (this.client) {
+            this.subscribers.clear();
             this.client.end();
             this.client = null;
+            this.connectionStatus = 'disconnected';
         }
-        this.subscribers.clear();
     }
 }
 

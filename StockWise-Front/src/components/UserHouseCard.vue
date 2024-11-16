@@ -13,7 +13,7 @@
       </v-chip>
     </v-card-title>
 
-    <!-- Informações de temperatura -->
+         <!-- Informações de temperatura -->
     <v-card-text>
       <div class="temperature-info">
         <!-- Limites configurados -->
@@ -26,30 +26,44 @@
           <span>Máx: {{ house.max_temperature }}°C</span>
         </div>
 
+        <!-- Alerta de temperatura -->
+        <v-alert
+          v-if="!isTemperatureInRange && currentTemperature"
+          density="compact"
+          type="warning"
+          variant="tonal"
+          class="mb-3"
+        >
+          <div class="d-flex align-center">
+            <span class="text-caption">
+              Temperatura fora dos limites!
+            </span>
+          </div>
+        </v-alert>
+
         <!-- Temperatura atual -->
         <div class="d-flex align-center mb-2">
-      <v-icon 
-        :color="temperatureColor" 
-        size="large"
-        class="mr-2"
-      >
-        {{ temperatureIcon }}
-      </v-icon>
-      <div>
-        <div class="text-subtitle-1">
-          Temperatura atual:
-          <span :class="{'text-error': !isTemperatureInRange}">
-            {{ formattedTemperature }}
-          </span>
+          <v-icon 
+            :color="temperatureColor" 
+            size="large"
+            class="mr-2"
+          >
+            {{ temperatureIcon }}
+          </v-icon>
+          <div>
+            <div class="text-subtitle-1">
+              Temperatura atual:
+              <span :class="{'text-error': !isTemperatureInRange}">
+                {{ formattedTemperature }}
+              </span>
+            </div>
+            <div v-if="temperatureTimestamp" class="text-caption text-grey">
+              Última atualização: {{ formatTimestamp(temperatureTimestamp) }}
+            </div>
+          </div>
         </div>
-        <div v-if="temperatureTimestamp" class="text-caption text-grey">
-          Última atualização: {{ formatTimestamp(temperatureTimestamp) }}
-        </div>
-      </div>
-    </div>
       </div>
 
-      <!-- Data de criação -->
       <div class="text-caption text-grey mt-2">
         Criada em: {{ formatDate(house.created_at) }}
       </div>
@@ -111,43 +125,41 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
-import { useTemperatureStore } from '@/stores/temperature'
-import { mqttService } from '@/services/mqtt.service'
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { useTemperatureStore } from '@/stores/temperature';
 
 const props = defineProps({
   house: {
     type: Object,
     required: true
   }
-})
+});
 
-const router = useRouter()
-const temperatureStore = useTemperatureStore()
+const router = useRouter();
+const temperatureStore = useTemperatureStore();
 
-// Estado local
-const showInviteDialog = ref(false)
-const showEditDialog = ref(false)
+// Estado local para diálogos
+const showInviteDialog = ref(false);
+const showEditDialog = ref(false);
 
 // Computed properties
-const isOwner = computed(() => props.house.role === 'owner')
+const isOwner = computed(() => props.house.role === 'owner');
 
 const currentTemperature = computed(() => 
   temperatureStore.getHouseTemperature(props.house.house_id)
 );
 
-const temperatureTimestamp = computed(() => {
-  const data = temperatureStore.temperatures.get(props.house.house_id)
-  return data?.timestamp
-})
+const temperatureTimestamp = computed(() => 
+  temperatureStore.getHouseTemperatureTimestamp(props.house.house_id)
+);
 
 const isTemperatureInRange = computed(() => 
-    temperatureStore.isTemperatureInRange(
-        props.house.house_id,
-        Number(props.house.min_temperature),
-        Number(props.house.max_temperature)
-    )
+  temperatureStore.isTemperatureInRange(
+    props.house.house_id,
+    Number(props.house.min_temperature),
+    Number(props.house.max_temperature)
+  )
 );
 
 const formattedTemperature = computed(() => {
@@ -165,7 +177,7 @@ const temperatureColor = computed(() => {
   return isTemperatureInRange.value ? 'primary' : 'error';
 });
 
-// Funções auxiliares
+// Métodos
 const formatTimestamp = (timestamp) => {
   return new Date(timestamp).toLocaleTimeString('pt-PT', {
     hour: '2-digit',
@@ -173,48 +185,22 @@ const formatTimestamp = (timestamp) => {
     second: '2-digit'
   });
 };
-// Métodos
+
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('pt-PT', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
-  })
-}
+  });
+};
 
-const goToMonitoring = async () => {
-  try {
-    console.log(`Navegando para monitorização da casa ${props.house.house_id}`);
-    await router.push({
-      name: 'house-monitor', // Usar o nome da rota em vez do path
-      params: { id: props.house.house_id }
-    });
-  } catch (error) {
-    console.error('Erro na navegação:', error);
-  }
-}
-
-// Lifecycle hooks
-onMounted(async () => {
-    console.log('A montar card para casa:', props.house.house_id);
-    
-    if (mqttService.connectionStatus !== 'connected') {
-        console.log('A conectar ao MQTT...');
-        await mqttService.connect();
-    }
-    
-    console.log('A subscrever à temperatura...');
-    await temperatureStore.subscribeToHouseTemperature(props.house); 
-});
-
-onBeforeUnmount(() => {
-  try {
-    console.log('A desinscrever da temperatura...');
-    temperatureStore.unsubscribeFromHouseTemperature(props.house.house_id);
-  } catch (error) {
-    console.error('Erro ao desinscrever da temperatura:', error);
-  }
-});
+const goToMonitoring = () => {
+  console.log(`Navegando para monitorização da casa ${props.house.house_id}`);
+  router.push({
+    name: 'house-monitor',
+    params: { id: props.house.house_id }
+  });
+};
 </script>
 
 <style scoped>

@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { apiService } from '@/services/api.service'
 import router from '@/router'
+import { useHousesStore } from './houses'
 
 export const useUserStore = defineStore('users', {
     state: () => ({
@@ -75,15 +76,13 @@ export const useUserStore = defineStore('users', {
             try {
                 this.error = null;
                 
-                // 1. Fazer login e obter token
                 const response = await apiService.post('/users/login', credentials);
-                console.log('Resposta do login:', response);
-
+                
                 if (!response.success || !response.accessToken) {
                     throw new Error(response.msg || 'Erro ao efetuar login');
                 }
 
-                // 2. Guardar token e extrair dados do utilizador
+                // Processar login e autenticação
                 const token = response.accessToken;
                 const userData = this.extractUserDataFromToken(token);
 
@@ -91,13 +90,15 @@ export const useUserStore = defineStore('users', {
                     throw new Error('Erro ao processar dados do utilizador');
                 }
 
-                // 3. Atualizar estado
                 localStorage.setItem('token', token);
                 localStorage.setItem('userData', JSON.stringify(userData));
                 this.user = userData;
                 this.isAuthenticated = true;
 
-                // 4. Redirecionar
+                // Carregar casas e inicializar simuladores/subscrições
+                await this.initializeAfterLogin();
+
+                // Redirecionar
                 const redirect = router.currentRoute.value.query.redirect;
                 await router.replace(redirect || '/houses');
 
@@ -110,6 +111,13 @@ export const useUserStore = defineStore('users', {
             }
         },
 
+                /**
+         * Inicializa recursos após login
+         */
+                async initializeAfterLogin() {
+                    const { fetchUserHouses } = useHousesStore();
+                    await fetchUserHouses(true); // Forçar recarregamento
+                },
         /**
          * Verifica estado de autenticação
          */
@@ -118,19 +126,26 @@ export const useUserStore = defineStore('users', {
             return !!token && this.isAuthenticated;
         },
 
-        /**
+ /**
          * Efetua logout do utilizador
          */
-        logout() {
-            this.user = null;
-            this.isAuthenticated = false;
-            localStorage.removeItem('token');
-            localStorage.removeItem('userData');
+ logout() {
+    // Parar simuladores
+    temperatureSimulatorService.stopAll();
+    
+    // Limpar subscrições MQTT
+    mqttSubscriptionManager.clearAllSubscriptions();
+    
+    // Limpar dados do utilizador
+    this.user = null;
+    this.isAuthenticated = false;
+    localStorage.removeItem('token');
+    localStorage.removeItem('userData');
 
-            if (router.currentRoute.value.name !== 'login') {
-                router.push({ name: 'login' });
-            }
-        },
+    if (router.currentRoute.value.name !== 'login') {
+        router.push({ name: 'login' });
+    }
+},
 
         /**
          * Limpa erros da store

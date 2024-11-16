@@ -53,6 +53,28 @@ class HousesService {
             throw error;
         }
     }
+
+        /**
+     * Obtém detalhes de uma casa específica
+     * @param {string} houseId - ID da casa
+     * @param {string} token - Token de autenticação
+     * @returns {Promise} Detalhes da casa
+     */
+        async getHouseDetails(houseId, token) {
+            if (!houseId || !token) {
+                throw new Error('ID da casa e token são obrigatórios');
+            }
+    
+            try {
+                return await apiService.get(`/houses/${houseId}`, token);
+            } catch (error) {
+                console.error('Erro ao obter detalhes da casa:', error);
+                throw error;
+            }
+        }
+        
 }
+
+
 
 export const housesService = new HousesService();

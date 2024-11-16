@@ -1,48 +1,40 @@
+// components/Header.vue
 <template>
-  <v-app-bar app color="primary" dark>
-    <v-toolbar-title>StockWise</v-toolbar-title>
+  <v-app-bar>
+    <v-app-bar-title>
+      <router-link 
+        to="/houses" 
+        class="text-decoration-none primary--text"
+      >
+        StockWise
+      </router-link>
+    </v-app-bar-title>
+
     <v-spacer></v-spacer>
 
-     <!-- Componente de Alertas -->
-     <AlertsNotification v-if="isAuthenticated" class="mr-4" />
-    
-    <!-- Menu do utilizador -->
-    <v-menu v-if="isAuthenticated" offset-y>
-      <template v-slot:activator="{ props }">
-        <v-btn icon v-bind="props">
-          <v-icon>mdi-account-circle</v-icon>
-        </v-btn>
-      </template>
-      
-      <v-list>
-        <v-list-item @click="handleLogout">
-          <v-list-item-title>
-            <v-icon left>mdi-logout</v-icon>
-            Terminar Sessão
-          </v-list-item-title>
-        </v-list-item>
-      </v-list>
-    </v-menu>
+    <!-- Componente de Notificações -->
+    <AlertsNotification v-if="isAuthenticated" />
+
+    <!-- Menu de Utilizador -->
+    <v-btn
+      v-if="isAuthenticated"
+      icon
+      @click="logout"
+    >
+      <v-icon>mdi-logout</v-icon>
+    </v-btn>
   </v-app-bar>
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router';
+import { computed } from 'vue';
 import { useUserStore } from '@/stores/user';
-import { storeToRefs } from 'pinia';
 import AlertsNotification from './AlertsNotification.vue';
 
-const router = useRouter()
-const userStore = useUserStore()
-const { isAuthenticated } = storeToRefs(userStore)
+const userStore = useUserStore();
+const isAuthenticated = computed(() => userStore.isAuthenticated);
 
-// Função para gerir o logout
-const handleLogout = async () => {
-  try {
-    userStore.logout()
-    await router.push({ name: 'login' })
-  } catch (error) {
-    console.error('Erro ao terminar sessão:', error)
-  }
-}
+const logout = () => {
+  userStore.logout();
+};
 </script>
