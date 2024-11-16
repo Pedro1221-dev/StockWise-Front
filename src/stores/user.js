@@ -20,7 +20,6 @@ export const useUserStore = defineStore('users', {
       } catch (error) {
         console.error('Error in store creating user:', error);
         throw error; 
-        // Handle error gracefully
       }
     },
     async login(user) {
@@ -29,23 +28,25 @@ export const useUserStore = defineStore('users', {
         this.user = response;
         console.log(response.accessToken);
         
-        // Armazenar o accessToken no sessionStorage
         if (response.accessToken) {
           sessionStorage.setItem('accessToken', response.accessToken);
-          this.user_id = response.user_id;
-          
-          // Redirecionar para a página /houses após 5 segundos
+          this.user_id = response.user_id;          
           setTimeout(() => {
             router.push('/houses');
-          }, 5000);
+          }, 2000);
         }
     
         return response.data;
       } catch (error) {
         console.error('Error in store login:', error);
         throw error; 
-        // Handle error gracefully
       }
+    },
+    async logout() {
+      this.user = null;
+      this.user_id = null;
+      sessionStorage.removeItem('accessToken');
+      router.push('/');
     }
   },
 });

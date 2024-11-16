@@ -30,7 +30,7 @@
 </template>
 
 <script>
-import { useHouseStore } from '../stores/house'; // Importe a store
+import { useHouseStore } from '../stores/house'; 
 
 export default {
   data() {
@@ -50,7 +50,7 @@ export default {
       if (this.$refs.form.validate()) {
         const houseStore = useHouseStore();
         try {
-          await houseStore.createHouse(this.house); // Envie os dados da casa para a store
+          await houseStore.createHouse(this.house); 
           console.log('House data saved:', this.house);
           this.$router.push({ name: 'Houses' });
         } catch (error) {

@@ -1,6 +1,7 @@
 <template>
   <v-container>
     <v-btn color="primary" @click="createHouse">Create House</v-btn>
+    <v-btn color="secondary" @click="logout">Logout</v-btn>
     <v-row>
       <p v-if="!houses.length" class="center">No Houses Found!</p>
       <v-col v-for="house in houses" :key="house.id" cols="12" md="6">
@@ -8,6 +9,7 @@
           :name="house.name"
           :min_temperature="house.min_temperature"
           :max_temperature="house.max_temperature"
+          :id="house.house_id"
         />
       </v-col>
     </v-row>
@@ -38,10 +40,14 @@ export default {
     },
     createHouse() {
       this.$router.push({ name: 'CreateHouse' });
+    },
+    logout() {
+      useUserStore().logout();
+      this.$router.push({ name: 'Login' });
     }
   },
   mounted() {
-    this.fetchHouses(); // Chame a função para buscar os dados das casas quando o componente for montado
+    this.fetchHouses();
   }
 };
 </script>

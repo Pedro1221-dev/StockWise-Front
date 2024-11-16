@@ -3,6 +3,7 @@
     <v-btn color="secondary" @click="goBack">Back</v-btn>
     <v-card class="mx-auto my-4" max-width="400">
       <v-card-title>Edit House</v-card-title>
+      <p>House Id: {{ this.$route.query.id }}</p>
       <v-card-text>
         <v-form ref="form">
           <v-text-field
@@ -30,17 +31,16 @@
 </template>
 
 <script>
-import { useHouseStore } from '../stores/house'; // Importe a store
+import { useHouseStore } from '../stores/house';
 
 export default {
   name: 'EditHouse',
   data() {
     return {
       house: {
-        id: this.$route.params.id, // Obtenha o ID da casa dos parâmetros da rota
-        name: '',
-        min_temperature: '',
-        max_temperature: ''
+        name: this.$route.query.name,
+        min_temperature: this.$route.query.min_temperature,
+        max_temperature: this.$route.query.max_temperature
       }
     };
   },
@@ -52,7 +52,10 @@ export default {
       if (this.$refs.form.validate()) {
         const houseStore = useHouseStore();
         try {
-          await houseStore.updateHouse(this.house); // Envie os dados atualizados da casa para a store
+          console.log('House data on edit View:', this.house);
+          this.house.min_temperature = Number(this.house.min_temperature);
+          this.house.max_temperature = Number(this.house.max_temperature);
+          await houseStore.updateHouse(this.house,this.$route.query.id); 
           console.log('House data saved:', this.house);
           this.$router.push({ name: 'Houses' });
         } catch (error) {

@@ -10,8 +10,8 @@
         </v-btn>
       </v-col>
     </v-row>
-    <v-card-subtitle>Min Temp: {{ minTemp }}°C</v-card-subtitle>
-    <v-card-subtitle>Max Temp: {{ maxTemp }}°C</v-card-subtitle>
+    <v-card-subtitle>Min Temp: {{ min_temperature }}°C</v-card-subtitle>
+    <v-card-subtitle>Max Temp: {{ max_temperature }}°C</v-card-subtitle>
     <v-card-actions>
       <v-btn color="primary" @click="invitePeople">Invite People</v-btn>
     </v-card-actions>
@@ -34,6 +34,7 @@
 <script>
 import copyIcon from '@/assets/copyIcon.svg';
 import editIcon from '@/assets/editIcon.png';
+import { useHouseStore } from '../stores/house';
 
 export default {
   name: 'userHouseCard',
@@ -42,11 +43,15 @@ export default {
       type: String,
       required: true
     },
-    minTemp: {
+    min_temperature: {
       type: Number,
       required: true
     },
-    maxTemp: {
+    max_temperature: {
+      type: Number,
+      required: true
+    },
+    id:{
       type: Number,
       required: true
     }
@@ -59,9 +64,13 @@ export default {
     };
   },
   methods: {
-    invitePeople() {
-      // Generate the invite link
-      this.inviteLink = `${window.location.origin}/invite?houseName=${encodeURIComponent(this.name)}`;
+    async invitePeople() {
+      const houseStore = useHouseStore();
+      try {
+        this.inviteLink = await houseStore.generateInviteLink(this.id);
+      } catch (error) {
+        console.error('Error generating invite link:', error);
+      }
     },
     copyInviteLink() {
       // Copy the invite link to the clipboard
@@ -74,10 +83,11 @@ export default {
     editHouse() {
       this.$router.push({
         name: 'EditHouse',
-        params: {
+        query: {
           name: this.name,
-          minTemp: this.minTemp,
-          maxTemp: this.maxTemp
+          min_temperature: this.min_temperature,
+          max_temperature: this.max_temperature,
+          id: this.id
         }
       });
     }
