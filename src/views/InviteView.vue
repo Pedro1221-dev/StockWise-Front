@@ -39,7 +39,14 @@ export default {
   methods: {
     async acceptInvite() {
       try {
-        const response = await this.houseStore.acceptInvite(1, this.invite_id);
+        const house_id = await this.houseStore.getHouseByInviteId(
+          this.invite_id
+        );
+
+        const response = await this.houseStore.acceptInvite(
+          house_id,
+          this.invite_id
+        );
         setTimeout(() => {
           router.push("/houses");
         }, 2000);

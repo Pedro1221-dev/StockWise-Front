@@ -85,5 +85,14 @@ export const useHouseStore = defineStore("houses", {
         console.error("Error accepting invite:", error);
       }
     },
+    async getHouseByInviteId(invite_id) {
+      try {
+        const token = sessionStorage.getItem("accessToken");
+        const response = await get(`houses/invites/${invite_id}/house`, token);
+        return response.data;
+      } catch (error) {
+        console.error("Error fetching house by invite ID:", error);
+      }
+    },
   },
 });
