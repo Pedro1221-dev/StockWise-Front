@@ -17,38 +17,38 @@
 </template>
 
 <script>
-import UserHouseCard from '../components/UserHouseCard.vue';
-import { useHouseStore } from '../stores/house'; 
-import { useUserStore } from '../stores/user'; 
+import UserHouseCard from "../components/UserHouseCard.vue";
+import { useHouseStore } from "../stores/house";
+import { useUserStore } from "../stores/user";
 
 export default {
   components: {
-    UserHouseCard
+    UserHouseCard,
   },
   computed: {
     houses() {
       const houseStore = useHouseStore();
       return houseStore.houses;
-    }
+    },
   },
   methods: {
     async fetchHouses() {
       const houseStore = useHouseStore();
       const userStore = useUserStore();
-      const userId = userStore.user_id; 
+      const userId = userStore.user_id;
       await houseStore.fetchHouses(userId);
     },
     createHouse() {
-      this.$router.push({ name: 'CreateHouse' });
+      this.$router.push({ name: "CreateHouse" });
     },
     logout() {
       useUserStore().logout();
-      this.$router.push({ name: 'Login' });
-    }
+      this.$router.push({ name: "Login" });
+    },
   },
   mounted() {
     this.fetchHouses();
-  }
+  },
 };
 </script>
 <style>

@@ -32,7 +32,9 @@
         v-model="form.email"
       ></v-text-field>
 
-      <div class="text-subtitle-1 text-medium-emphasis d-flex align-center justify-space-between">
+      <div
+        class="text-subtitle-1 text-medium-emphasis d-flex align-center justify-space-between"
+      >
         Password
       </div>
 
@@ -47,12 +49,7 @@
         v-model="form.password"
       ></v-text-field>
 
-      <v-card
-        class="mb-12"
-        color="surface-variant"
-        variant="tonal"
-      >
-      </v-card>
+      <v-card class="mb-12" color="surface-variant" variant="tonal"> </v-card>
 
       <v-btn
         class="mb-8"
@@ -72,7 +69,9 @@
           rel="noopener noreferrer"
           target="_blank"
         >
-          <RouterLink to="/">Already have an account?<v-icon icon="mdi-chevron-right"></v-icon></RouterLink>
+          <RouterLink to="/"
+            >Already have an account?<v-icon icon="mdi-chevron-right"></v-icon
+          ></RouterLink>
         </a>
       </v-card-text>
     </v-card>
@@ -85,9 +84,9 @@ import { useUserStore } from "@/stores/user";
 export default {
   data: () => ({
     form: {
-      name: '',
-      email: '',
-      password: ''
+      name: "",
+      email: "",
+      password: "",
     },
     visible: false,
   }),
@@ -98,7 +97,7 @@ export default {
       } catch (error) {
         console.log(error);
       }
-    }
-  }
-}
+    },
+  },
+};
 </script>
