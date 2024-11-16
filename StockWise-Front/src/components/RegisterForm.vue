@@ -1,4 +1,4 @@
-//RegisterForm.vue
+// StockWise-Front\src\components\RegisterForm.vue
 <template>
   <div>
     <v-card

@@ -27,28 +27,26 @@
         </div>
 
         <!-- Temperatura atual -->
-        <div class="current-temperature pb-2">
-          <div class="d-flex align-center">
-            <v-icon 
-              :color="temperatureColor" 
-              size="large"
-              class="mr-2"
-            >
-              {{ temperatureIcon }}
-            </v-icon>
-            <div>
-              <div class="text-subtitle-1">
-                Temperatura atual:
-                <span :class="{'text-error': !isTemperatureInRange}">
-                  {{ currentTemperature }}
-                </span>
-              </div>
-              <div v-if="temperatureTimestamp" class="text-caption text-grey">
-                Última atualização: {{ formatTimestamp(temperatureTimestamp) }}
-              </div>
-            </div>
-          </div>
+        <div class="d-flex align-center mb-2">
+      <v-icon 
+        :color="temperatureColor" 
+        size="large"
+        class="mr-2"
+      >
+        {{ temperatureIcon }}
+      </v-icon>
+      <div>
+        <div class="text-subtitle-1">
+          Temperatura atual:
+          <span :class="{'text-error': !isTemperatureInRange}">
+            {{ formattedTemperature }}
+          </span>
         </div>
+        <div v-if="temperatureTimestamp" class="text-caption text-grey">
+          Última atualização: {{ formatTimestamp(temperatureTimestamp) }}
+        </div>
+      </div>
+    </div>
       </div>
 
       <!-- Data de criação -->
@@ -135,38 +133,46 @@ const showEditDialog = ref(false)
 // Computed properties
 const isOwner = computed(() => props.house.role === 'owner')
 
-const currentTemperature = computed(() => {
-  const temp = temperatureStore.getHouseTemperature(props.house.house_id)
-  return temp !== null ? `${temp.toFixed(1)}°C` : 'Aguardando...'
-})
+const currentTemperature = computed(() => 
+  temperatureStore.getHouseTemperature(props.house.house_id)
+);
 
 const temperatureTimestamp = computed(() => {
   const data = temperatureStore.temperatures.get(props.house.house_id)
   return data?.timestamp
 })
 
-const isTemperatureInRange = computed(() => {
-  return temperatureStore.isTemperatureInRange(
-    props.house.house_id,
-    props.house.min_temperature,
-    props.house.max_temperature
-  )
-})
+const isTemperatureInRange = computed(() => 
+    temperatureStore.isTemperatureInRange(
+        props.house.house_id,
+        Number(props.house.min_temperature),
+        Number(props.house.max_temperature)
+    )
+);
+
+const formattedTemperature = computed(() => {
+  const temp = currentTemperature.value;
+  return temp !== null ? `${temp.toFixed(1)}°C` : 'Aguardando...';
+});
 
 const temperatureIcon = computed(() => {
-  if (!isTemperatureInRange.value) {
-    return 'mdi-alert-circle'
-  }
-  return 'mdi-thermometer'
-})
+  if (!currentTemperature.value) return 'mdi-thermometer';
+  return isTemperatureInRange.value ? 'mdi-thermometer' : 'mdi-alert-circle';
+});
 
 const temperatureColor = computed(() => {
-  if (!isTemperatureInRange.value) {
-    return 'error'
-  }
-  return 'primary'
-})
+  if (!currentTemperature.value) return 'grey';
+  return isTemperatureInRange.value ? 'primary' : 'error';
+});
 
+// Funções auxiliares
+const formatTimestamp = (timestamp) => {
+  return new Date(timestamp).toLocaleTimeString('pt-PT', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
 // Métodos
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('pt-PT', {
@@ -176,33 +182,39 @@ const formatDate = (dateString) => {
   })
 }
 
-const formatTimestamp = (timestamp) => {
-  return new Date(timestamp).toLocaleTimeString('pt-PT', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
-}
-
-const goToMonitoring = () => {
-  router.push(`/houses/${props.house.house_id}/monitor`)
+const goToMonitoring = async () => {
+  try {
+    console.log(`Navegando para monitorização da casa ${props.house.house_id}`);
+    await router.push({
+      name: 'house-monitor', // Usar o nome da rota em vez do path
+      params: { id: props.house.house_id }
+    });
+  } catch (error) {
+    console.error('Erro na navegação:', error);
+  }
 }
 
 // Lifecycle hooks
 onMounted(async () => {
-  // Garantir conexão MQTT
-  if (mqttService.connectionStatus !== 'connected') {
-    await mqttService.connect()
-  }
-  
-  // Subscrever à temperatura desta casa
-  temperatureStore.subscribeToHouseTemperature(props.house.house_id)
-})
+    console.log('A montar card para casa:', props.house.house_id);
+    
+    if (mqttService.connectionStatus !== 'connected') {
+        console.log('A conectar ao MQTT...');
+        await mqttService.connect();
+    }
+    
+    console.log('A subscrever à temperatura...');
+    await temperatureStore.subscribeToHouseTemperature(props.house); 
+});
 
 onBeforeUnmount(() => {
-  // Limpar subscrição ao desmontar
-  temperatureStore.unsubscribeFromHouseTemperature(props.house.house_id)
-})
+  try {
+    console.log('A desinscrever da temperatura...');
+    temperatureStore.unsubscribeFromHouseTemperature(props.house.house_id);
+  } catch (error) {
+    console.error('Erro ao desinscrever da temperatura:', error);
+  }
+});
 </script>
 
 <style scoped>

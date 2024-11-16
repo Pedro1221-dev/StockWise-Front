@@ -1,90 +1,85 @@
 // stores/temperature.js
-import { defineStore } from 'pinia'
-import { mqttService } from '@/services/mqtt.service'
+import { defineStore } from 'pinia';
+import { mqttService } from '@/services/mqtt.service';
+import { useAlertsStore } from './alerts';
 
 export const useTemperatureStore = defineStore('temperature', {
     state: () => ({
-        temperatures: new Map(), // Mapa de house_id -> temperatura atual
+        temperatures: new Map(), // Map de house_id -> {value, timestamp}
         loading: false,
         error: null
     }),
 
     getters: {
-        /**
-         * Obtém temperatura de uma casa específica
-         * @param {string} houseId - ID da casa
-         * @returns {number|null} Temperatura ou null se não disponível
-         */
+        // Obter temperatura de uma casa específica
         getHouseTemperature: (state) => (houseId) => {
             return state.temperatures.get(houseId)?.value || null;
         },
 
-        /**
-         * Verifica se temperatura está dentro dos limites
-         * @param {string} houseId - ID da casa
-         * @returns {boolean} true se temperatura está nos limites
-         */
+        // Verificar se temperatura está dentro dos limites
+        // IMPORTANTE: Corrigido para seguir o mesmo padrão de arrow function
         isTemperatureInRange: (state) => (houseId, minTemp, maxTemp) => {
             const temp = state.temperatures.get(houseId)?.value;
-            if (!temp) return true; // Se não há leitura, assumir OK
+            if (temp === null || temp === undefined) return true; // Se não há leitura, assumir OK
             return temp >= minTemp && temp <= maxTemp;
         }
     },
 
     actions: {
-        /**
-         * Subscreve ao tópico de temperatura de uma casa
-         * @param {string} houseId - ID da casa
-         */
-        subscribeToHouseTemperature(houseId) {
-            const topic = `house/${houseId}/temperature`;
+        async subscribeToHouseTemperature(house) { 
+            this.loading = true;
             
-            // Callback para processar mensagens de temperatura
-            const handleTemperature = (message) => {
-                if (message.temperature !== undefined) {
-                    this.temperatures.set(houseId, {
-                        value: parseFloat(message.temperature),
-                        timestamp: message.timestamp || new Date().toISOString()
-                    });
-                }
-            };
-
             try {
-                // Guardar callback para poder dessubscrever depois
-                this.temperatures.set(houseId, { callback: handleTemperature });
+                if (!mqttService.client?.connected) {
+                    await mqttService.connect();
+                }
+
+                const topic = `house/${house.house_id}/temperature`;
+                const alertsStore = useAlertsStore();
                 
-                // Subscrever ao tópico
+                // Inicializar estado de alertas para esta casa
+                alertsStore.initializeHouseState(house.house_id);
+                
+                // Callback para processar mensagens
+                const handleTemperature = (data) => {
+                    // console.log('Temperatura recebida:', data);
+                    if (typeof data.temperature === 'number') {
+                        this.temperatures.set(house.house_id, {
+                            value: data.temperature,
+                            timestamp: data.timestamp || new Date().toISOString()
+                        });
+                        
+                        // Processar temperatura para alertas
+                        alertsStore.processTemperatureReading(
+                            house.house_id, 
+                            data.temperature, 
+                            {
+                                min_temperature: house.min_temperature,
+                                max_temperature: house.max_temperature,
+                                buffer_zone: house.buffer_zone || 1.0 // valor padrão caso não exista
+                            }
+                        );
+                    } else {
+                        console.warn('Temperatura inválida recebida:', data);
+                    }
+                };
+
                 mqttService.subscribe(topic, handleTemperature);
+                
             } catch (error) {
-                console.error(`Erro ao subscrever temperatura da casa ${houseId}:`, error);
+                console.error(`Erro ao subscrever temperatura da casa ${house.house_id}:`, error);
                 this.error = 'Erro ao monitorizar temperatura';
+            } finally {
+                this.loading = false;
             }
         },
 
-        /**
-         * Cancela subscrição de temperatura de uma casa
-         * @param {string} houseId - ID da casa
-         */
         unsubscribeFromHouseTemperature(houseId) {
             const topic = `house/${houseId}/temperature`;
-            const data = this.temperatures.get(houseId);
-            
-            if (data?.callback) {
-                mqttService.unsubscribe(topic, data.callback);
-                this.temperatures.delete(houseId);
+            this.temperatures.delete(houseId);
+            if (mqttService.client?.connected) {
+               // mqttService.unsubscribe(topic);
             }
-        },
-
-        /**
-         * Limpa todas as subscrições
-         */
-        clearAllSubscriptions() {
-            this.temperatures.forEach((data, houseId) => {
-                if (data.callback) {
-                    this.unsubscribeFromHouseTemperature(houseId);
-                }
-            });
-            this.temperatures.clear();
         }
     }
 });

@@ -6,6 +6,7 @@ import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import UserHousesListView from '../views/UserHousesListView.vue'
 import ErrorPage from '../views/ErrorPage.vue'
+import HouseMonitorView from '@/views/HouseMonitorView.vue'
 
 const routes = [
   {
@@ -45,6 +46,20 @@ const routes = [
     component: ErrorPage,
     props: true
   },
+  {
+    path: '/houses/:id/monitor',
+    name: 'house-monitor',
+    component: HouseMonitorView,
+    meta: { 
+      requiresAuth: true,
+      title: 'Monitorização'
+    }
+  },
+{
+  path: '/mqtt-test',
+  name: 'mqtt-test',
+  component: () => import('@/components/MqttTest.vue')
+},
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',

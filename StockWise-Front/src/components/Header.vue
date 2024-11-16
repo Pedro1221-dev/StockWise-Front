@@ -2,6 +2,9 @@
   <v-app-bar app color="primary" dark>
     <v-toolbar-title>StockWise</v-toolbar-title>
     <v-spacer></v-spacer>
+
+     <!-- Componente de Alertas -->
+     <AlertsNotification v-if="isAuthenticated" class="mr-4" />
     
     <!-- Menu do utilizador -->
     <v-menu v-if="isAuthenticated" offset-y>
@@ -24,9 +27,10 @@
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router';
+import { useUserStore } from '@/stores/user';
+import { storeToRefs } from 'pinia';
+import AlertsNotification from './AlertsNotification.vue';
 
 const router = useRouter()
 const userStore = useUserStore()

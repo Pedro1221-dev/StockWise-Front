@@ -114,14 +114,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useHousesStore } from '@/stores/houses'
 import UserHouseCard from '@/components/UserHouseCard.vue'
+import { TemperatureSimulator } from '@/utils/temperatureSimulator';
 
 const housesStore = useHousesStore()
 const { houses, loading, error } = storeToRefs(housesStore)
 const hasHouses = computed(() => houses.value.length > 0)
+const simulators = ref(new Map());
 
 // Form refs and state
 const form = ref(null)
@@ -172,9 +174,25 @@ const clearError = () => {
 }
 
 // Carregar casas ao montar o componente
-onMounted(() => {
-  fetchHouses()
-})
+onMounted(async () => {
+    await fetchHouses();
+    
+    // Iniciar simuladores apenas após carregar as casas
+    houses.value.forEach(house => {
+        if (!simulators.value.has(house.house_id)) {
+            console.log(`Iniciando simulador para casa ${house.house_id}`);
+            const simulator = new TemperatureSimulator(house.house_id);
+            simulator.start();
+            simulators.value.set(house.house_id, simulator);
+        }
+    });
+});
+
+onBeforeUnmount(() => {
+  // Parar simuladores
+  simulators.value.forEach(simulator => simulator.stop());
+  simulators.value.clear();
+});
 </script>
 
 <style scoped>
