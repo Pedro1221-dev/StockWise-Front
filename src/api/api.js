@@ -3,7 +3,7 @@ import { useToast } from "vue-toastification";
 const toast = useToast();
 
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:3000/', // URL do servidor back-end
+  baseURL: 'http://127.0.0.1:3000/', 
 });
 
 export async function post(endpoint, data, token = null, contentType = 'application/json') {
@@ -16,11 +16,14 @@ export async function post(endpoint, data, token = null, contentType = 'applicat
     }
     console.log('POST request to', endpoint, 'with data', data);
     const response = await api.post(endpoint, data, { headers: headers });
-    toast.success("Registration successful!");
+    toast.success(response.data.message || response.data.msg, {
+      timeout: 1994,
+      pauseOnHover: false
+    });
     return handleResponse(response);
   } catch (error) {
     console.error(`Error posting to ${endpoint}:`, error);
-    toast.error(`Registration failed: ${error.response.data.msg}`);
+    toast.error(`Registration failed: ${error.response.data.msg}`, {timeout: 1994,pauseOnHover: false});
     return error.response.data;
   }
 }
@@ -52,6 +55,7 @@ export async function patch(endpoint, data, token = null) {
     }
     console.log('PATCH request to', endpoint, 'with data', data);
     const response = await api.patch(endpoint, data, { headers: headers });
+    toast.success("House updated successfully!", {timeout: 1994,pauseOnHover: false});
     return handleResponse(response);
   } catch (error) {
     console.error(`Error patching to ${endpoint}:`, error);
