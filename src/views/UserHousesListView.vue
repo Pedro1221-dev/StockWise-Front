@@ -4,8 +4,16 @@
     <v-btn color="secondary" @click="logout">Logout</v-btn>
     <v-row>
       <p v-if="!houses.length" class="center">No Houses Found!</p>
-      <v-col v-for="house in houses" :key="house.id" cols="12" md="6">
+      <v-col v-for="house in houses" :key="house.id" cols="24" md="6">
         <userHouseCard
+          :name="house.name"
+          :min_temperature="house.min_temperature"
+          :max_temperature="house.max_temperature"
+          :id="house.house_id"
+        />
+      </v-col>
+      <v-col v-for="house in memberHouses" :key="house.id" cols="6" md="6">
+        <UserHouseCardMember
           :name="house.name"
           :min_temperature="house.min_temperature"
           :max_temperature="house.max_temperature"
@@ -18,17 +26,23 @@
 
 <script>
 import UserHouseCard from "../components/UserHouseCard.vue";
+import UserHouseCardMember from "../components/UserHouseCardMember.vue";
 import { useHouseStore } from "../stores/house";
 import { useUserStore } from "../stores/user";
 
 export default {
   components: {
     UserHouseCard,
+    UserHouseCardMember,
   },
   computed: {
     houses() {
       const houseStore = useHouseStore();
       return houseStore.houses;
+    },
+    memberHouses() {
+      const houseStore = useHouseStore();
+      return houseStore.memberHouses;
     },
   },
   methods: {

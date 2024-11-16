@@ -23,6 +23,7 @@ function parseJwt(token) {
 export const useHouseStore = defineStore("houses", {
   state: () => ({
     houses: [],
+    memberHouses: [],
   }),
   actions: {
     async fetchHouses() {
@@ -36,7 +37,8 @@ export const useHouseStore = defineStore("houses", {
         }
 
         const response = await get(`/users/${userId}/houses`, token);
-        this.houses = response.data;
+        this.houses = response.data.houses;
+        this.memberHouses = response.data.memberHouses;
       } catch (error) {
         console.error("Error fetching houses:", error);
       }

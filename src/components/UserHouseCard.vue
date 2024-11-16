@@ -6,12 +6,14 @@
       </v-col>
       <v-col class="d-flex justify-end align-center">
         <v-btn icon @click="editHouse">
-          <img :src="editIcon" alt="Edit" class="edit-icon">
+          <img :src="editIcon" alt="Edit" class="edit-icon" />
         </v-btn>
       </v-col>
     </v-row>
     <v-card-subtitle>Min Temp: {{ min_temperature }}°C</v-card-subtitle>
     <v-card-subtitle>Max Temp: {{ max_temperature }}°C</v-card-subtitle>
+    <v-card-subtitle>Role: Owner</v-card-subtitle>
+
     <v-card-actions>
       <v-btn color="primary" @click="invitePeople">Invite People</v-btn>
     </v-card-actions>
@@ -24,7 +26,7 @@
           class="mr-2"
         ></v-text-field>
         <v-btn icon @click="copyInviteLink">
-          <img :src="copyIcon" alt="Copy" class="copy-icon">
+          <img :src="copyIcon" alt="Copy" class="copy-icon" />
         </v-btn>
       </div>
     </v-card-text>
@@ -32,35 +34,35 @@
 </template>
 
 <script>
-import copyIcon from '@/assets/copyIcon.svg';
-import editIcon from '@/assets/editIcon.png';
-import { useHouseStore } from '../stores/house';
+import copyIcon from "@/assets/copyIcon.svg";
+import editIcon from "@/assets/editIcon.png";
+import { useHouseStore } from "../stores/house";
 
 export default {
-  name: 'userHouseCard',
+  name: "userHouseCard",
   props: {
     name: {
       type: String,
-      required: true
+      required: true,
     },
     min_temperature: {
       type: Number,
-      required: true
+      required: true,
     },
     max_temperature: {
       type: Number,
-      required: true
+      required: true,
     },
-    id:{
+    id: {
       type: Number,
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
-      inviteLink: '',
+      inviteLink: "",
       copyIcon,
-      editIcon
+      editIcon,
     };
   },
   methods: {
@@ -69,30 +71,33 @@ export default {
       try {
         this.inviteLink = await houseStore.generateInviteLink(this.id);
       } catch (error) {
-        console.error('Error generating invite link:', error);
+        console.error("Error generating invite link:", error);
       }
     },
     copyInviteLink() {
       // Copy the invite link to the clipboard
-      navigator.clipboard.writeText(this.inviteLink).then(() => {
-        this.$emit('link-copied', this.inviteLink);
-      }).catch(err => {
-        console.error('Failed to copy text: ', err);
-      });
+      navigator.clipboard
+        .writeText(this.inviteLink)
+        .then(() => {
+          this.$emit("link-copied", this.inviteLink);
+        })
+        .catch((err) => {
+          console.error("Failed to copy text: ", err);
+        });
     },
     editHouse() {
       this.$router.push({
-        name: 'EditHouse',
+        name: "EditHouse",
         query: {
           name: this.name,
           min_temperature: this.min_temperature,
           max_temperature: this.max_temperature,
-          id: this.id
-        }
+          id: this.id,
+        },
       });
-    }
-  }
-}
+    },
+  },
+};
 </script>
 
 <style scoped>
@@ -113,7 +118,8 @@ export default {
 .mr-2 {
   margin-right: 8px;
 }
-.copy-icon, .edit-icon {
+.copy-icon,
+.edit-icon {
   width: 24px;
   height: 24px;
 }

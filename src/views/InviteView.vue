@@ -6,11 +6,10 @@
       platform.
     </p>
     <v-btn
-      class="mb-8"
+      class="mt-4"
       color="blue"
       size="large"
       variant="tonal"
-      block
       @click="acceptInvite"
       >Accept Invitation</v-btn
     >
@@ -41,7 +40,6 @@ export default {
     async acceptInvite() {
       try {
         const response = await this.houseStore.acceptInvite(1, this.invite_id);
-        this.toast.success("Invitation accepted successfully");
         setTimeout(() => {
           router.push("/houses");
         }, 2000);
