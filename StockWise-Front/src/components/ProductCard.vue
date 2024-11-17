@@ -56,7 +56,7 @@ const maxAllowedQuantity = computed(() => {
     const availableWeight = productsStore.getShelfAvailableCapacity(props.shelfId, props.shelf);
     
     // Espaço máximo permitido no produto
-    const maxProductCapacity = currentProduct.value.max_capacity - currentProduct.value.current_weight;
+    const maxProductCapacity = currentProduct.value.max_capacity - currentProduct.value.container_weight;
     
     // Ajustar para descontar o peso do container
     const maxWeightConsideringContainer = Math.max(0, availableWeight - containerWeight.value);
@@ -281,6 +281,7 @@ const confirmQuantityChange = async () => {
 
         const amount = Number(quantityDialog.value.amount); // Quantidade ajustada
         const newTotalWeight = amount + containerWeight.value; // Peso total: produto + container
+        const netWeight = Math.max(0, newTotalWeight - containerWeight.value); // Peso líquido
 
         // Validar capacidade da prateleira
         productsStore.validateShelfCapacity(
@@ -297,7 +298,7 @@ const confirmQuantityChange = async () => {
             last_known_weight: originalWeight.value // Atualiza o peso anterior
         });
 
-        console.log('Produto atualizado:', updatedProduct);
+        console.log('[confirmQuantityChange] Produto atualizado:', updatedProduct);
 
         // Publicar eventos MQTT
         publishWeightEvent(newTotalWeight, originalWeight.value);
@@ -312,6 +313,15 @@ const confirmQuantityChange = async () => {
             newTotalWeight // Passar o novo peso total
         );
 
+        // Verificar se o stock está abaixo do mínimo e emitir alerta
+        if (netWeight <= currentProduct.value.min_stock) {
+            console.log('[confirmQuantityChange] Emitindo alerta de stock baixo.');
+            alertsMonitor.checkLowStock(props.houseId, props.shelfId, {
+                ...updatedProduct,
+                current_weight: newTotalWeight // Atualizar o peso atual no alerta
+            });
+        }
+
         closeQuantityDialog(); // Fechar diálogo
 
     } catch (error) {
@@ -321,6 +331,7 @@ const confirmQuantityChange = async () => {
         isUpdating.value = false;
     }
 };
+
 
 
 
