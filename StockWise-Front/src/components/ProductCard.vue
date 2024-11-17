@@ -231,7 +231,6 @@ const simulateRFIDScan = () => {
 const confirmQuantityChange = async () => {
     try {
         isUpdating.value = true;
-        console.log('[ProductCard] Confirmando alteração de quantidade');
         
         const amount = Number(quantityDialog.value.amount);
         const newTotalWeight = amount + containerWeight.value;
@@ -241,16 +240,11 @@ const confirmQuantityChange = async () => {
             location_status: 'in_shelf'
         });
 
-        // Publicar eventos MQTT
+        // Publicar eventos MQTT básicos
         publishWeightEvent(newTotalWeight, originalWeight.value);
         publishStatusEvent('in_shelf');
 
-        // Publicar alerta de adição
-        console.log('[ProductCard] Publicando alerta de adição:', {
-            newTotalWeight,
-            amount
-        });
-        
+        // Publicar alerta de adição e verificar stock
         alertsMonitor.publishProductAction(
             props.houseId,
             props.shelfId,
@@ -272,7 +266,7 @@ const confirmQuantityChange = async () => {
         closeQuantityDialog();
 
     } catch (error) {
-        console.error('[ProductCard] Erro ao atualizar produto:', error);
+        console.error('Erro ao atualizar produto:', error);
     } finally {
         isUpdating.value = false;
     }

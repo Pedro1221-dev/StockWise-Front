@@ -6,102 +6,152 @@ class MQTTService {
         this.client = null;
         this.subscribers = new Map();
         this.connectionStatus = 'disconnected';
+        this.debugMode = true;
     }
 
+    /**
+     * Estabelece conexão com o broker MQTT
+     */
     async connect() {
         if (this.connectionStatus === 'connected') {
-            console.log('Cliente MQTT já conectado');
+            this.log('Cliente MQTT já conectado');
             return;
         }
 
         try {
-            console.log('Conectando ao broker MQTT...');
+            this.log('Conectando ao broker MQTT...');
             this.connectionStatus = 'connecting';
 
             const options = {
                 clientId: 'stockwise_' + Math.random().toString(16).slice(2, 8),
                 clean: true,
                 connectTimeout: 4000,
-                reconnectPeriod: 1000
+                reconnectPeriod: 1000,
+                protocolVersion: 5 // MQTT 5.0
             };
 
             this.client = mqtt.connect('ws://localhost:9001', options);
-
-            this.client.on('connect', () => {
-                console.log('✓ Conectado ao broker MQTT');
-                this.connectionStatus = 'connected';
-                this.resubscribeAll();
-            });
-
-            this.client.on('message', (topic, message) => {
-                const callbacks = this.subscribers.get(topic);
-                if (!callbacks) return;
-
-                let parsedMessage;
-                try {
-                    // Tentar parse do buffer como string primeiro
-                    const messageStr = message.toString();
-                    try {
-                        // Tentar parse como JSON
-                        parsedMessage = JSON.parse(messageStr);
-                    } catch (e) {
-                        // Se falhar, usar a string diretamente
-                        parsedMessage = messageStr;
-                    }
-
-                    // Log para debug
-                    console.log('MQTT Mensagem Recebida:', {
-                        topic,
-                        rawMessage: messageStr,
-                        parsedMessage
-                    });
-
-                    // Notificar todos os callbacks subscritos
-                    callbacks.forEach(callback => {
-                        try {
-                            callback(parsedMessage, topic);
-                        } catch (err) {
-                            console.error('Erro no callback do subscriber:', err);
-                        }
-                    });
-                } catch (error) {
-                    console.error('Erro ao processar mensagem MQTT:', {
-                        topic,
-                        error,
-                        rawMessage: message.toString()
-                    });
-                }
-            });
-
-            this.client.on('error', (error) => {
-                console.error('Erro na conexão MQTT:', error);
-                this.connectionStatus = 'error';
-            });
-
-            this.client.on('offline', () => {
-                console.warn('Cliente MQTT offline');
-                this.connectionStatus = 'disconnected';
-            });
+            await this.setupEventHandlers();
 
         } catch (error) {
-            console.error('Erro ao conectar ao broker MQTT:', error);
+            this.error('Erro ao conectar ao broker MQTT:', error);
             this.connectionStatus = 'error';
             throw error;
         }
     }
 
+    /**
+     * Configura os handlers de eventos MQTT
+     */
+    async setupEventHandlers() {
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('Timeout ao conectar ao broker MQTT'));
+            }, 5000);
+
+            this.client.on('connect', () => {
+                this.log('✓ Conectado ao broker MQTT');
+                this.connectionStatus = 'connected';
+                this.resubscribeAll();
+                clearTimeout(timeout);
+                resolve();
+            });
+
+            this.client.on('message', (topic, message) => this.handleMessage(topic, message));
+
+            this.client.on('error', (error) => {
+                this.error('Erro na conexão MQTT:', error);
+                this.connectionStatus = 'error';
+                clearTimeout(timeout);
+                reject(error);
+            });
+
+            this.client.on('offline', () => {
+                this.warn('Cliente MQTT offline');
+                this.connectionStatus = 'disconnected';
+            });
+        });
+    }
+
+    /**
+     * Processa mensagens recebidas do broker
+     */
+    handleMessage(topic, message) {
+        try {
+            // Processar a mensagem
+            const messageStr = message.toString();
+            let parsedMessage;
+            
+            try {
+                parsedMessage = JSON.parse(messageStr);
+            } catch (e) {
+                parsedMessage = messageStr;
+            }
+
+            this.log('Mensagem MQTT Recebida:', {
+                topic,
+                parsedMessage
+            });
+
+            // Encontrar todos os callbacks interessados neste tópico
+            for (const [subscribedTopic, callbacks] of this.subscribers) {
+                if (this.topicMatches(topic, subscribedTopic)) {
+                    callbacks.forEach(callback => {
+                        try {
+                            // IMPORTANTE: Passar uma cópia profunda da mensagem
+                            const messageCopy = JSON.parse(JSON.stringify(parsedMessage));
+                            callback(messageCopy, topic);
+                        } catch (err) {
+                            this.error('Erro no callback do subscriber:', err);
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            this.error('Erro ao processar mensagem MQTT:', error);
+        }
+    }
+
+    /**
+     * Verifica se um tópico corresponde a um padrão de subscrição
+     */
+    topicMatches(actualTopic, pattern) {
+        // Converter wildcards em regex
+        const regexPattern = pattern
+            .replace(/\+/g, '[^/]+')     // + corresponde a um nível
+            .replace(/#/g, '.*');        // # corresponde a múltiplos níveis
+        
+        const regex = new RegExp(`^${regexPattern}$`);
+        return regex.test(actualTopic);
+    }
+
+    /**
+     * Subscreve a um tópico
+     */
     subscribe(topic, callback) {
         if (!this.subscribers.has(topic)) {
-            console.log('Subscrevendo ao tópico:', topic);
+            this.log('Subscrevendo ao tópico:', topic);
             this.subscribers.set(topic, new Set());
-            this.client?.subscribe(topic, { qos: 1 });
+            
+            // Configurar opções MQTT 5.0
+            const options = {
+                qos: 1,
+                properties: {
+                    subscriptionIdentifier: Math.floor(Math.random() * 100000)
+                }
+            };
+
+            this.client?.subscribe(topic, options);
         }
         this.subscribers.get(topic).add(callback);
     }
 
+    /**
+     * Publica uma mensagem
+     */
     publish(topic, message) {
         if (!this.client?.connected) {
-            console.warn('Cliente MQTT não conectado ao tentar publicar:', {
+            this.warn('Cliente MQTT não conectado ao tentar publicar:', {
                 topic,
                 message
             });
@@ -109,34 +159,37 @@ class MQTTService {
         }
 
         try {
-            // Garantir que a mensagem seja uma string
             const messageStr = typeof message === 'string' 
                 ? message 
                 : JSON.stringify(message);
 
-            console.log('Publicando MQTT:', {
+            this.log('Publicando MQTT:', {
                 topic,
-                message: messageStr
+                message: JSON.parse(messageStr) // Log mais legível
             });
 
-            this.client.publish(topic, messageStr, { qos: 1 }, (error) => {
+            // Configurar opções MQTT 5.0
+            const options = {
+                qos: 1,
+                properties: {
+                    messageExpiryInterval: 3600,
+                    contentType: 'application/json'
+                }
+            };
+
+            this.client.publish(topic, messageStr, options, (error) => {
                 if (error) {
-                    console.error('Erro ao publicar mensagem:', {
-                        topic,
-                        message: messageStr,
-                        error
-                    });
+                    this.error('Erro ao publicar mensagem:', error);
                 }
             });
         } catch (error) {
-            console.error('Erro ao preparar mensagem para publicação:', {
-                topic,
-                message,
-                error
-            });
+            this.error('Erro ao preparar mensagem para publicação:', error);
         }
     }
 
+    /**
+     * Cancela subscrição de um tópico
+     */
     unsubscribe(topic, callback) {
         const callbacks = this.subscribers.get(topic);
         if (!callbacks) return;
@@ -153,22 +206,41 @@ class MQTTService {
         }
     }
 
+    /**
+     * Resubscreve a todos os tópicos após reconexão
+     */
     resubscribeAll() {
-        console.log('Resubscrevendo a todos os tópicos...');
+        this.log('Resubscrevendo a todos os tópicos...');
         for (const [topic] of this.subscribers) {
-            console.log('Resubscrevendo ao tópico:', topic);
+            this.log('Resubscrevendo ao tópico:', topic);
             this.client.subscribe(topic, { qos: 1 });
         }
     }
 
+    /**
+     * Limpa todas as subscrições e desconecta
+     */
     cleanup() {
-        console.log('Limpando conexão MQTT...');
+        this.log('Limpando conexão MQTT...');
         if (this.client) {
             this.subscribers.clear();
             this.client.end();
             this.client = null;
             this.connectionStatus = 'disconnected';
         }
+    }
+
+    // Métodos de logging
+    log(...args) {
+        if (this.debugMode) console.log('[MQTTService]', ...args);
+    }
+
+    warn(...args) {
+        if (this.debugMode) console.warn('[MQTTService]', ...args);
+    }
+
+    error(...args) {
+        console.error('[MQTTService]', ...args);
     }
 }
 

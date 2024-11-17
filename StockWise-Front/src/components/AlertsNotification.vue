@@ -78,14 +78,14 @@
             </template>
 
             <!-- Conteúdo do alerta -->
-            <v-list-item-content class="d-flex align-center">
+            <div class="d-flex align-center">
   <v-list-item-title class="headline mb-0">
     {{ alert.houseName }}
   </v-list-item-title>
   <v-list-item-subtitle class="text-subtitle-2 ml-2 mb-0">
     - {{ alert.title }}
   </v-list-item-subtitle>
-</v-list-item-content>
+</div>
 
             <v-list-item-subtitle class="text-caption text-medium-emphasis">
               {{ alert.message }}

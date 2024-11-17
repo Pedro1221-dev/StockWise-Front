@@ -44,11 +44,6 @@ export const useProductsStore = defineStore('products', {
                     oldState: { ...product }
                 });
 
-                // Se estamos a remover o produto, guardar o peso atual
-                if (updates.location_status === 'removed' && !updates.last_known_weight) {
-                    updates.last_known_weight = product.current_weight;
-                }
-
                 // Atualizar na BD
                 const token = localStorage.getItem('token');
                 const response = await productsService.updateProduct(productId, updates, token);
@@ -70,12 +65,14 @@ export const useProductsStore = defineStore('products', {
                     newState: updatedProduct
                 });
 
+                // Atualizar peso total da prateleira
+                this.updateShelfWeight(product.shelf_id);
+
             } catch (error) {
                 console.error('Erro ao atualizar produto:', error);
                 throw error;
             }
         },
-    
 
         updateShelfWeight(shelfId) {
             // Calcular peso total da prateleira
@@ -91,6 +88,34 @@ export const useProductsStore = defineStore('products', {
                 shelfId,
                 totalWeight
             });
+        },
+
+        async registerProduct(productData) {
+            try {
+                console.log('[ProductsStore] Registando novo produto:', productData);
+        
+                // Enviar para a API
+                const token = localStorage.getItem('token');
+                const response = await productsService.create(productData, token);
+        
+                if (!response.success) {
+                    throw new Error(response.message || 'Erro ao registar produto');
+                }
+        
+                // Adicionar à store
+                const newProduct = response.data;
+                this.products.set(newProduct.product_id, newProduct);
+        
+                // Atualizar peso total da prateleira
+                this.updateShelfWeight(newProduct.shelf_id);
+        
+                console.log('[ProductsStore] Produto registado com sucesso:', newProduct);
+                return newProduct;
+        
+            } catch (error) {
+                console.error('[ProductsStore] Erro ao registar produto:', error);
+                throw error;
+            }
         },
 
 
