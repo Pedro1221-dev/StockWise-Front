@@ -19,11 +19,15 @@
 
     <!-- Menu de alertas -->
     <v-menu
-      v-model="showMenu"
-      :close-on-content-click="false"
-      location="bottom end"
-      max-width="600"
-    >
+  v-model="showMenu"
+  :close-on-content-click="false"
+  location="bottom end"
+  offset-y
+  attach="body"
+  max-width="600"
+>
+
+
       <v-card class="alerts-menu">
         <!-- Cabeçalho -->
         <v-card-title class="d-flex justify-space-between align-center py-2 px-4">
@@ -233,11 +237,12 @@ const clearAllAlerts = () => {
 
 <style scoped>
 .alerts-container {
-  position: relative;
+  display: inline-flex; /* Alinhar com o botão do sino */
 }
 
 .alerts-menu {
   max-height: 400px;
+  overflow-y: auto;
 }
 
 .alerts-list {

@@ -282,7 +282,7 @@ const handleAddProduct = () => {
 const handleProductRegistered = async (newProduct) => {
     try {
         console.log('Novo produto registado:', newProduct);
-        
+
         // Criar alerta de sucesso
         alertsStore.createAlert({
             type: 'product_registered',
@@ -290,7 +290,7 @@ const handleProductRegistered = async (newProduct) => {
             severity: 'success',
             title: 'Novo Produto Registado',
             houseName: house.value.name,
-            message: `${newProduct.name} foi registado com sucesso na ${selectedShelf.value.name}`,
+            message: `${newProduct.name} foi registado com sucesso na ${newProduct.shelf.name}`,
             data: newProduct,
             timestamp: new Date().toISOString(),
             houseId: Number(route.params.id)
@@ -299,12 +299,13 @@ const handleProductRegistered = async (newProduct) => {
         // Recarregar dados e limpar estado
         await fetchHouseData();
         selectedShelf.value = null;
-        
+
     } catch (error) {
         console.error('Erro ao processar registo do produto:', error);
         error.value = 'Erro ao processar registo do produto';
     }
 };
+
 
 
 const fetchHouseData = async () => {

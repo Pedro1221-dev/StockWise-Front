@@ -1,7 +1,7 @@
 <!-- StockWise-Front\src\components\ProductCard.vue -->
 <script setup>
 // Imports
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { mqttService } from '@/services/mqtt.service';
 import { useProductsStore } from '@/stores/products';
 import { storeToRefs } from 'pinia';
@@ -19,6 +19,10 @@ const props = defineProps({
     },
     houseId: {
         type: [String, Number],
+        required: true
+    },
+    shelf: {  
+        type: Object,
         required: true
     }
 });
@@ -48,11 +52,33 @@ const netWeight = computed(() => Math.max(0, currentWeight.value - containerWeig
 
 // Computed Properties - Status e Limites
 const maxAllowedQuantity = computed(() => {
-    if (currentProduct.value.location_status === 'removed') {
-        return currentProduct.value.max_capacity - containerWeight.value;
-    }
-    return netWeight.value;
+    // Peso restante na prateleira
+    const availableWeight = productsStore.getShelfAvailableCapacity(props.shelfId, props.shelf);
+    
+    // Espaço máximo permitido no produto
+    const maxProductCapacity = currentProduct.value.max_capacity - currentProduct.value.current_weight;
+    
+    // Ajustar para descontar o peso do container
+    const maxWeightConsideringContainer = Math.max(0, availableWeight - containerWeight.value);
+
+    // Devolver o menor valor entre o limite do produto e o espaço disponível na prateleira
+    return Math.min(maxProductCapacity, maxWeightConsideringContainer);
 });
+
+
+
+
+const validateNewWeight = (newWeight) => {
+    try {
+        return productsStore.validateProductWeight(
+            props.shelfId,
+            newWeight,
+            currentProduct.value.product_id
+        );
+    } catch (error) {
+        return false;
+    }
+};
 
 // Computed Properties - Interface
 const locationStatus = computed(() => 
@@ -210,67 +236,93 @@ const handleProductRemoval = async () => {
 
 // Handler do Sensor RFID
 const simulateRFIDScan = () => {
-    console.log('[ProductCard] Simulando scan RFID. Estado atual:', currentProduct.value.location_status);
+    console.log('[ProductCard] Simulando scan RFID:', {
+        estado: currentProduct.value.location_status,
+        prateleira: props.shelf,
+        capacidade: productsStore.getShelfAvailableCapacity(props.shelfId, props.shelf)
+    });
     
-    if (currentProduct.value.location_status === 'removed') {
-        // Se produto está fora, abrir diálogo para ajuste
-        console.log('[ProductCard] Produto removido - abrindo diálogo para reposição');
-        quantityDialog.value = {
-            show: true,
-            amount: 0,
-            previousWeight: originalWeight.value
-        };
-    } else {
-        // Se produto está na prateleira, apenas remover
-        console.log('[ProductCard] Produto na prateleira - removendo');
-        handleProductRemoval();
+    try {
+        if (currentProduct.value.location_status === 'removed') {
+            const availableWeight = productsStore.getShelfAvailableCapacity(props.shelfId, props.shelf);
+
+            // Garantir que há espaço suficiente na prateleira para o peso líquido
+            if (availableWeight < currentProduct.value.container_weight) {
+                quantityDialog.value = {
+                    show: true,
+                    amount: 0,
+                    previousWeight: originalWeight.value,
+                    error: `Capacidade insuficiente na prateleira. Disponível: ${formatWeight(availableWeight)}`
+                };
+                return;
+            }
+
+            quantityDialog.value = {
+                show: true,
+                amount: 0,
+                previousWeight: originalWeight.value,
+                error: null
+            };
+        } else {
+            handleProductRemoval();
+        }
+    } catch (error) {
+        console.error('[ProductCard] Erro:', error);
     }
 };
+
+
+
 
 // Handlers do Diálogo
 const confirmQuantityChange = async () => {
     try {
         isUpdating.value = true;
-        
-        const amount = Number(quantityDialog.value.amount);
-        const newTotalWeight = amount + containerWeight.value;
 
-        await productsStore.updateProduct(currentProduct.value.product_id, {
+        const amount = Number(quantityDialog.value.amount); // Quantidade ajustada
+        const newTotalWeight = amount + containerWeight.value; // Peso total: produto + container
+
+        // Validar capacidade da prateleira
+        productsStore.validateShelfCapacity(
+            props.shelfId,
+            props.shelf,
+            newTotalWeight, // Peso total
+            currentProduct.value.product_id
+        );
+
+        // Atualizar o peso do produto
+        const updatedProduct = await productsStore.updateProduct(currentProduct.value.product_id, {
             current_weight: newTotalWeight,
-            location_status: 'in_shelf'
+            location_status: 'in_shelf',
+            last_known_weight: originalWeight.value // Atualiza o peso anterior
         });
 
-        // Publicar eventos MQTT básicos
+        console.log('Produto atualizado:', updatedProduct);
+
+        // Publicar eventos MQTT
         publishWeightEvent(newTotalWeight, originalWeight.value);
         publishStatusEvent('in_shelf');
 
-        // Publicar alerta de adição e verificar stock
+        // Emitir alerta de reposição
         alertsMonitor.publishProductAction(
             props.houseId,
             props.shelfId,
-            currentProduct.value,
-            'added',
-            newTotalWeight
+            updatedProduct, // Produto atualizado
+            'added', // Nova ação "added" para reposição
+            newTotalWeight // Passar o novo peso total
         );
 
-        // Verificar stock baixo
-        alertsMonitor.monitorProduct(
-            props.houseId,
-            props.shelfId,
-            {
-                ...currentProduct.value,
-                current_weight: newTotalWeight
-            }
-        );
-
-        closeQuantityDialog();
+        closeQuantityDialog(); // Fechar diálogo
 
     } catch (error) {
-        console.error('Erro ao atualizar produto:', error);
+        console.error('Erro ao atualizar produto:', error.message);
+        // Adicionar feedback visual ou notificação
     } finally {
         isUpdating.value = false;
     }
 };
+
+
 
 
 const closeQuantityDialog = () => {
@@ -280,6 +332,11 @@ const closeQuantityDialog = () => {
         previousWeight: 0
     };
 };
+const isMounted = ref(false);
+
+onMounted(() => {
+    isMounted.value = true;
+});
 </script>
 
 <template>
@@ -355,82 +412,93 @@ const closeQuantityDialog = () => {
         </v-card-item>
 
         <!-- Diálogo de Ajuste de Quantidade -->
-        <v-dialog v-model="quantityDialog.show" max-width="400px">
-            <v-card>
-                <v-card-title>{{ dialogTitle }}</v-card-title>
-                <v-card-text>
-                    <!-- Informação do estado atual -->
-                    <div class="mb-4">
-        <p v-if="currentProduct.location_status === 'in_shelf'" class="text-subtitle-1">
-            Quantidade atual: {{ formatWeight(netWeight) }}
-        </p>
-        <p v-else class="text-subtitle-1">
-            Última quantidade registada: {{ formatWeight(lastKnownWeight - containerWeight) }}
-        </p>
-    </div>
+        <v-dialog
+    v-if="isMounted"
+    v-model="quantityDialog.show"
+    max-width="400px"
+>
+    <v-card>
+        <v-card-title>{{ dialogTitle }}</v-card-title>
+        <v-card-text>
+            <!-- Mensagem de Erro -->
+            <v-alert
+                v-if="quantityDialog.error"
+                type="error"
+                class="mb-4"
+            >
+                {{ quantityDialog.error }}
+            </v-alert>
 
-                    <!-- Campo de entrada -->
-                    <v-text-field
-        v-model="quantityDialog.amount"
-        type="number"
-        label="Nova quantidade (g)"
-        :min="0"
-        :max="maxAllowedQuantity"
-        :rules="[
-            v => (v !== null && v !== '') || 'Quantidade é obrigatória',
-            v => Number(v) >= 0 || 'Quantidade não pode ser negativa',
-            v => Number(v) <= maxAllowedQuantity || 
-                `Quantidade não pode exceder ${formatWeight(maxAllowedQuantity)}`
-        ]"
-        :hint="currentProduct.location_status === 'in_shelf' 
-            ? 'Introduza a quantidade que pretende deixar na prateleira'
-            : 'Introduza a quantidade que pretende repor na prateleira'"
-        persistent-hint
-        @keypress="onlyNumbers"
-    >
-                        <template v-slot:append>
-                            <span class="text-caption">
-                                máx: {{ formatWeight(maxAllowedQuantity) }}
-                            </span>
-                        </template>
-                    </v-text-field>
+            <!-- Informação do estado atual -->
+            <div class="mb-4">
+                <p v-if="currentProduct.location_status === 'in_shelf'" class="text-subtitle-1">
+                    Quantidade atual: {{ formatWeight(netWeight) }}
+                </p>
+                <p v-else class="text-subtitle-1">
+                    Última quantidade registada: {{ formatWeight(lastKnownWeight - containerWeight) }}
+                </p>
+            </div>
 
- <!-- Indicador de alteração -->
- <div v-if="quantityDialog.amount" class="mt-4">
-        <v-chip
-            size="small"
-            :color="getQuantityChangeText.includes('+') ? 'success' : 'warning'"
-            variant="outlined"
-            class="px-3 py-2"
-        >
-            <v-icon size="small" :class="{'mr-2': true}">
-                {{ getQuantityChangeText.includes('+') ? 'mdi-arrow-up' : 'mdi-arrow-down' }}
-            </v-icon>
-            {{ getQuantityChangeText }}
-        </v-chip>
-    </div>
-                </v-card-text>
-                
-                <v-card-actions>
-    <v-spacer></v-spacer>
-    <v-btn 
-        color="primary" 
-        @click="confirmQuantityChange"
-        :disabled="!isValidQuantity"
-        :loading="isUpdating"
-    >
-        {{ isUpdating ? 'A confirmar...' : 'Confirmar' }}
-    </v-btn>
-    <v-btn 
-        color="error" 
-        text 
-        @click="closeQuantityDialog"
-        :disabled="isUpdating"
-    >
-        Cancelar
-    </v-btn>
-</v-card-actions>
-            </v-card>
-        </v-dialog>
+            <!-- Campo de entrada -->
+            <v-text-field
+                v-model="quantityDialog.amount"
+                type="number"
+                label="Nova quantidade (g)"
+                :rules="[ 
+                    v => (v !== null && v !== '') || 'Quantidade é obrigatória',
+                    v => Number(v) >= 0 || 'Quantidade não pode ser negativa',
+                    v => Number(v) <= maxAllowedQuantity || 
+                        `Quantidade não pode exceder ${formatWeight(maxAllowedQuantity)}` 
+                ]"
+                :hint="'Introduza a quantidade que pretende ajustar, considerando o limite da prateleira e do produto.'"
+                persistent-hint
+                @keypress="onlyNumbers"
+                :disabled="!!quantityDialog.error"
+            >
+                <template v-slot:append>
+                    <span class="text-caption">
+                        máx: {{ formatWeight(maxAllowedQuantity) }}
+                    </span>
+                </template>
+            </v-text-field>
+
+            <!-- Indicador de alteração -->
+            <div v-if="quantityDialog.amount && !quantityDialog.error" class="mt-4">
+                <v-chip
+                    size="small"
+                    :color="getQuantityChangeText.includes('+') ? 'success' : 'warning'"
+                    variant="outlined"
+                    class="px-3 py-2"
+                >
+                    <v-icon size="small" :class="{'mr-2': true}">
+                        {{ getQuantityChangeText.includes('+') ? 'mdi-arrow-up' : 'mdi-arrow-down' }}
+                    </v-icon>
+                    {{ getQuantityChangeText }}
+                </v-chip>
+            </div>
+        </v-card-text>
+
+        <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn 
+                color="primary" 
+                @click="confirmQuantityChange"
+                :disabled="!isValidQuantity || !!quantityDialog.error"
+                :loading="isUpdating"
+            >
+                {{ isUpdating ? 'A confirmar...' : 'Confirmar' }}
+            </v-btn>
+            <v-btn 
+                color="error" 
+                text 
+                @click="closeQuantityDialog"
+                :disabled="isUpdating"
+            >
+                Cancelar
+            </v-btn>
+        </v-card-actions>
+    </v-card>
+</v-dialog>
+
     </v-card>
 </template>

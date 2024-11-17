@@ -21,7 +21,7 @@ const productsStore = useProductsStore();
 
 // Computed properties agora usando a store
 const currentShelfWeight = computed(() => 
-    productsStore.getShelfWeight(props.shelf.shelf_id)
+    productsStore.getCurrentShelfWeight(props.shelf.shelf_id)
 );
 
 const weightPercentage = computed(() => {
@@ -86,6 +86,7 @@ const formatWeight = (weight) => {
                         :product="product"
                         :shelf-id="shelf.shelf_id"
                         :house-id="houseId"
+                        :shelf="shelf"
                     />
                 </v-list-item>
             </v-list>

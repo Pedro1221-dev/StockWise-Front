@@ -46,6 +46,8 @@ const loading = ref(false);
 const selectedType = ref(null);
 const selectedShelf = ref(null);
 
+const productsStore = useProductsStore();
+
 // Estado inicial do formulário
 const initialFormState = {
     name: '',
@@ -97,7 +99,10 @@ const getShelfRemainingCapacity = (shelf) => {
 // Computed para capacidade disponível
 const availableCapacity = computed(() => {
     if (!selectedShelf.value) return 0;
-    return getShelfRemainingCapacity(selectedShelf.value);
+    return productsStore.getShelfAvailableCapacity(
+        selectedShelf.value.shelf_id,
+        selectedShelf.value
+    );
 });
 
 // Computed para prateleiras disponíveis baseado no tipo selecionado
@@ -105,24 +110,21 @@ const availableShelves = computed(() => {
     if (!selectedType.value) return [];
     
     const typeConfig = productTypes[selectedType.value];
+    
     return props.shelves.filter(shelf => {
-        // Verificar se o nome da prateleira corresponde ao padrão do tipo
         const matchesType = typeConfig.shelfPattern.test(shelf.name);
+        const hasSpace = productsStore.isShelfAvailable(shelf, typeConfig);
         
-        // Verificar se há espaço disponível suficiente para pelo menos um container
-        const remainingCapacity = getShelfRemainingCapacity(shelf);
-        const hasSpace = remainingCapacity >= typeConfig.containerWeight;
-        
-        console.log(`Verificando prateleira ${shelf.name}:`, {
+        console.log(`[UnknownProductDialog] Avaliando prateleira ${shelf.name}:`, {
             matchesType,
-            remainingCapacity,
-            minimumNeeded: typeConfig.containerWeight,
             hasSpace
         });
         
         return matchesType && hasSpace;
     });
 });
+
+
 
 const getCapacityInfo = computed(() => {
     if (!selectedType.value) return '';
@@ -140,28 +142,22 @@ watch(selectedType, (newType) => {
         selectedShelf.value = null;
         return;
     }
-    
+
     const typeDefaults = productTypes[newType];
-    
-    // Gerar nova tag RFID
-    formData.value.rfid_tag = generateRandomTag();
-    
-    // Definir outros valores padrão
+
+    // Configuração inicial do formulário
     formData.value = {
         ...formData.value,
         container_weight: typeDefaults.containerWeight,
-        max_capacity: Math.min(typeDefaults.maxCapacity, availableCapacity.value),
-        min_stock: typeDefaults.containerWeight * 0.2,
-        initial_weight: 0
+        max_capacity: typeDefaults.maxCapacity,
+        min_stock: typeDefaults.containerWeight * 0.2
     };
 
-    // Selecionar primeira prateleira disponível automaticamente
-    if (availableShelves.value.length > 0) {
-        selectedShelf.value = availableShelves.value[0];
-    } else {
-        selectedShelf.value = null;
-    }
+    // Atualizar prateleiras disponíveis
+    const shelves = availableShelves.value;
+    selectedShelf.value = shelves.length > 0 ? shelves[0] : null;
 });
+
 
 // Watch para atualizar limites quando a prateleira muda
 watch(selectedShelf, (newShelf) => {
@@ -181,6 +177,15 @@ const handleSubmit = async () => {
     try {
         loading.value = true;
 
+        const totalWeight = formData.value.initial_weight + formData.value.container_weight;
+        
+        // Validar capacidade antes de prosseguir
+        productsStore.validateShelfCapacity(
+            selectedShelf.value.shelf_id,
+            selectedShelf.value,
+            totalWeight
+        );
+
         const newProduct = {
             name: formData.value.name,
             rfid_tag: formData.value.rfid_tag,
@@ -188,19 +193,20 @@ const handleSubmit = async () => {
             container_weight: formData.value.container_weight,
             min_stock: formData.value.min_stock,
             max_capacity: formData.value.max_capacity,
-            current_weight: formData.value.initial_weight + formData.value.container_weight,
+            current_weight: totalWeight,
             location_status: 'in_shelf'
         };
 
-        const productsStore = useProductsStore();
         await productsStore.registerProduct(newProduct);
 
         emit('product-registered', { ...newProduct, shelf: selectedShelf.value });
+
         resetForm();
         show.value = false;
 
     } catch (error) {
         console.error('Erro ao registar produto:', error);
+        // Mostrar erro ao utilizador
     } finally {
         loading.value = false;
     }
@@ -239,7 +245,6 @@ watch(() => props.modelValue, (newVal) => {
         form.value?.reset();
     }
 });
-
 </script>
 
 <template>

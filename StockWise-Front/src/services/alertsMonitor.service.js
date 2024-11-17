@@ -237,6 +237,7 @@ class AlertsMonitorService {
             };
         } else if (action === 'added') {
             console.log('[AlertsMonitor] Configurando alerta de adição');
+            console.log(`o netWeight é ${newWeight}`);
             alertConfig = {
                 type: 'product_added',
                 category: 'products',
