@@ -1,5 +1,5 @@
 // services/api.service.js
-import axios from 'axios'
+import axios from 'axios';
 
 class ApiService {
     constructor() {
@@ -9,27 +9,27 @@ class ApiService {
             headers: {
                 'Content-Type': 'application/json'
             }
-        })
+        });
 
         // Interceptor para tratar respostas e erros
         this.api.interceptors.response.use(
             response => response.data,
             error => {
                 if (error.response) {
-                    return Promise.reject(this.formatError(error.response.data))
+                    return Promise.reject(this.formatError(error.response.data));
                 } else if (error.request) {
                     return Promise.reject({
                         success: false,
                         msg: 'Erro de conexão com o servidor. Por favor, tente novamente.'
-                    })
+                    });
                 } else {
                     return Promise.reject({
                         success: false,
                         msg: 'Erro na configuração do pedido.'
-                    })
+                    });
                 }
             }
-        )
+        );
     }
 
     /**
@@ -40,9 +40,9 @@ class ApiService {
             return {
                 ...errorData,
                 msg: errorData.msg[0]
-            }
+            };
         }
-        return errorData
+        return errorData;
     }
 
     /**
@@ -53,37 +53,57 @@ class ApiService {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
-        }
+        };
     }
 
     /**
-     * Executa uma requisição GET
+     * GET request
      */
     async get(endpoint, token = null) {
         try {
-            const config = token ? this.getAuthHeaders(token) : {}
-            const response = await this.api.get(endpoint, config)
-            return response
+            const config = token ? this.getAuthHeaders(token) : {};
+            const response = await this.api.get(endpoint, config);
+            return response;
         } catch (error) {
-            throw error
+            throw error;
         }
     }
 
     /**
-     * Executa uma requisição POST
+     * POST request
      */
     async post(endpoint, data, token = null) {
         try {
-            const config = token ? this.getAuthHeaders(token) : {}
+            const config = token ? this.getAuthHeaders(token) : {};
+            
             if (import.meta.env.DEV) {
-                console.log(`Enviando pedido POST para ${endpoint}:`, data)
+                console.log(`Enviando pedido POST para ${endpoint}:`, data);
             }
-            const response = await this.api.post(endpoint, data, config)
-            return response
+            
+            const response = await this.api.post(endpoint, data, config);
+            return response;
         } catch (error) {
-            throw error
+            throw error;
+        }
+    }
+
+    /**
+     * PATCH request
+     */
+    async patch(endpoint, data, token = null) {
+        try {
+            const config = token ? this.getAuthHeaders(token) : {};
+            
+            if (import.meta.env.DEV) {
+                console.log(`Enviando pedido PATCH para ${endpoint}:`, data);
+            }
+            console.log('Enviando pedido PATCH para', endpoint, ':', data);
+            const response = await this.api.patch(endpoint, data, config);
+            return response;
+        } catch (error) {
+            throw error;
         }
     }
 }
 
-export const apiService = new ApiService()
+export const apiService = new ApiService();

@@ -1,4 +1,4 @@
-// components/Header.vue
+// StockWise-Front\src\components\Header.vue
 <template>
   <v-app-bar>
     <v-app-bar-title>

@@ -1,4 +1,4 @@
-//App.vue
+//StockWise-Front\src\App.vue
 <template>
   <v-app>
     <Header />

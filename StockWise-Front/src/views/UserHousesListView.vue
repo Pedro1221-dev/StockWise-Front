@@ -1,4 +1,4 @@
-// views/UserHousesListView.vue
+// StockWise-Front\src\views\UserHousesListView.vue
 <template>
   <div>
     <!-- Loading state -->

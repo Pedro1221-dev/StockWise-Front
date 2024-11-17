@@ -7,15 +7,14 @@
             indeterminate
             color="primary"
         ></v-progress-linear>
-
-        <!-- Error state -->
-        <v-alert
+       <!-- Error state -->
+       <v-alert
             v-if="error"
             type="error"
             variant="tonal"
             closable
             class="mb-4"
-            @click:close="clearError"
+            @click:close="error = null"
         >
             {{ error }}
         </v-alert>
@@ -58,6 +57,16 @@
                 </template>
                 Temperatura fora dos limites definidos!
             </v-alert>
+
+            <v-btn
+        color="primary"
+        @click="simulateUnknownProduct"
+        class="mb-4"
+        max-width="400"
+    >
+        <v-icon class="mr-2">mdi-plus-circle</v-icon>
+        Simular Produto Desconhecido
+    </v-btn>
         </div>
 
         <!-- Shelves Grid -->
@@ -71,7 +80,7 @@
             >
                 <ShelfCard
                     :shelf="shelf"
-                    :house-id="house.house_id"
+                    :house-id="Number(route.params.id)"
                 />
             </v-col>
         </v-row>
@@ -92,9 +101,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTemperatureStore } from '@/stores/temperature'
+import { useProductsStore } from '@/stores/products';
 import { housesService } from '@/services/houses.service'
 import ShelfCard from '@/components/ShelfCard.vue'
 
@@ -102,6 +112,7 @@ import ShelfCard from '@/components/ShelfCard.vue'
 const route = useRoute()
 const router = useRouter()
 const temperatureStore = useTemperatureStore()
+const productsStore = useProductsStore();
 
 // Estado local
 const house = ref(null)
@@ -157,15 +168,24 @@ const fetchHouseData = async () => {
         house.value = response.data;
         console.log('Dados da casa carregados:', house.value);
 
+        // Inicializar produtos na store
+        productsStore.initializeProducts(house.value.Shelves);
+
     } catch (err) {
         console.error('Erro ao carregar casa:', err);
         error.value = err.message;
-        router.push({ name: 'houses' });
     } finally {
         loading.value = false;
     }
 };
 
+const simulateUnknownProduct = () => {
+    mqttService.publish(`house/${route.params.id}/unknown_product`, {
+        rfid_tag: generateRandomTag(),
+        shelf_id: selectedShelf.value,
+        timestamp: new Date().toISOString()
+    });
+};
 const clearError = () => {
     error.value = null;
 };
@@ -173,6 +193,11 @@ const clearError = () => {
 // Lifecycle hooks
 onMounted(async () => {
     await fetchHouseData();
+});
+
+onBeforeUnmount(() => {
+    // Limpar subscrições MQTT
+    productsStore.cleanup();
 });
 </script>
 

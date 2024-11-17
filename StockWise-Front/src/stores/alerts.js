@@ -25,90 +25,82 @@ export const useAlertsStore = defineStore('alerts', {
     },
 
     actions: {
-        /**
-         * Subscreve aos alertas de uma casa
+       /**
+         * Subscreve aos alertas de uma casa específica
          */
-        subscribeToHouseAlerts(houseId) {
-            if (this.subscribedHouses.has(houseId)) return;
+       subscribeToHouseAlerts(houseId) {
+        if (this.subscribedHouses.has(houseId)) return;
+        console.log(`[AlertsStore] Iniciando subscrição de alertas para casa ${houseId}`);
 
-            const topic = `house/${houseId}/alerts/temperature`;
-            console.log(`[AlertsStore] Subscrevendo a alertas da casa ${houseId}`);
-
-            mqttService.subscribe(topic, (message) => {
-                console.log(`[AlertsStore] Alerta recebido para casa ${houseId}:`, message);
-                this.handleAlert(houseId, message);
+        // Subscrever a alertas de temperatura
+        const tempTopic = `house/${houseId}/alerts/temperature`;
+        console.log(`[AlertsStore] Subscrevendo a ${tempTopic}`);
+        mqttService.subscribe(tempTopic, (message) => {
+            console.log(`[AlertsStore] Alerta de temperatura recebido:`, message);
+            this.handleAlert(houseId, {
+                ...message,
+                category: 'temperature'
             });
+        });
 
-            this.subscribedHouses.add(houseId);
-        },
+        // Subscrever a alertas de produtos
+        const productsTopic = `house/${houseId}/alerts/products/+`;
+        console.log(`[AlertsStore] Subscrevendo a ${productsTopic}`);
+        mqttService.subscribe(productsTopic, (message) => {
+            console.log(`[AlertsStore] Alerta de produto recebido:`, message);
+            this.handleAlert(houseId, message);
+        });
 
-        /**
-         * Processa um alerta recebido
-         */
-     /**
-         * Processa um alerta recebido
-         */
-     handleAlert(houseId, message) {
-      const alertTypes = {
-          'high_temperature': {
-              title: 'Temperatura Alta',
-              severity: 'error',
-              formatMessage: (data, houseName) => 
-                  `${houseName}: Temperatura ${data.value.toFixed(1)}°C acima do limite de ${data.threshold}°C`
-          },
-          'low_temperature': {
-              title: 'Temperatura Baixa',
-              severity: 'warning',
-              formatMessage: (data, houseName) => 
-                  `${houseName}: Temperatura ${data.value.toFixed(1)}°C abaixo do limite de ${data.threshold}°C`
-          },
-          'temperature_normalized': {
-              title: 'Temperatura Normalizada',
-              severity: 'success',
-              formatMessage: (data, houseName) => 
-                  `${houseName}: Temperatura ${data.value.toFixed(1)}°C retornou aos limites normais (${data.threshold}°C)`
-          }
-      };
+        this.subscribedHouses.add(houseId);
+    },
 
-      const alertConfig = alertTypes[message.type];
-      if (!alertConfig) {
-          console.warn(`[AlertsStore] Tipo de alerta desconhecido:`, message.type);
-          return;
-      }
+    /**
+     * Processa um alerta recebido
+     */
+    handleAlert(houseId, message) {
+        console.log(`[AlertsStore] Processando alerta:`, { houseId, message });
 
-      const houseName = this.getHouseName(houseId);
+        // Gerar ID único para o alerta
+        const alertId = Date.now() + Math.random().toString(36).substring(7);
 
-      const newAlert = {
-          id: Date.now(),
-          houseId,
-          houseName,
-          type: message.type,
-          category: 'temperature',
-          title: `${houseName} - ${alertConfig.title}`,
-          message: alertConfig.formatMessage(message, houseName),
-          severity: message.severity || alertConfig.severity,
-          timestamp: message.timestamp,
-          read: false,
-          dismissed: false,
-          value: message.value
-      };
+        const newAlert = {
+            id: alertId,
+            houseId,
+            houseName: this.getHouseName(houseId),
+            type: message.type,
+            category: message.category,
+            title: message.title,
+            message: message.message,
+            severity: message.severity,
+            timestamp: message.timestamp,
+            data: message.data,
+            read: false,
+            dismissed: false
+        };
 
-      console.log(`[AlertsStore] Criando novo alerta:`, newAlert);
-      this.createAlert(newAlert);
-  },
+        console.log(`[AlertsStore] Criando novo alerta:`, newAlert);
+        this.createAlert(newAlert);
+    },
 
+    /**
+     * Adiciona um novo alerta
+     */
+    createAlert(alert) {
+        this.alerts.unshift(alert);
+        this.unreadCount++;
+        console.log(`[AlertsStore] Alerta criado, total não lidos: ${this.unreadCount}`);
+        console.log(`[AlertsStore] Alertas ativos:`, this.alerts);
+    },
 
-        /**
-         * Adiciona um novo alerta
-         */
-        createAlert(alert) {
-            // Adicionar ao início da lista
-            this.alerts.unshift(alert);
-            this.unreadCount++;
-
-            console.log(`[AlertsStore] Alerta criado, total não lidos:`, this.unreadCount);
-            console.log(`[AlertsStore] Alertas ativos:`, this.alerts);
-        },
+    /**
+     * Limpa subscrições para uma casa específica
+     */
+    unsubscribeFromHouseAlerts(houseId) {
+        console.log(`[AlertsStore] Limpando subscrições para casa ${houseId}`);
+        mqttService.unsubscribe(`house/${houseId}/alerts/temperature`);
+        mqttService.unsubscribe(`house/${houseId}/alerts/products/+`);
+        this.subscribedHouses.delete(houseId);
+    },
 
         /**
          * Marca um alerta como lido

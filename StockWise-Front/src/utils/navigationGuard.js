@@ -1,3 +1,4 @@
+//StockWise-Front\src\utils\navigationGuard.js
 /**
  * Verifica se o utilizador está autenticado para acesso a rotas protegidas
  * @param {Object} store - Store do Pinia para gestão de estado do utilizador

@@ -1,4 +1,4 @@
-// utils/temperatureSimulator.js
+// StockWise-Front\src\utils\temperatureSimulator.js
 import { mqttService } from "@/services/mqtt.service";
 
 export class TemperatureSimulator {
@@ -13,7 +13,7 @@ export class TemperatureSimulator {
         this.publishTemperature();
         
         // Iniciar atualizações periódicas
-        this.interval = setInterval(() => this.publishTemperature(), 5000);
+        this.interval = setInterval(() => this.publishTemperature(), 500000);
     }
 
     publishTemperature() {

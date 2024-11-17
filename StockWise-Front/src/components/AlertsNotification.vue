@@ -1,4 +1,4 @@
-// components/AlertsNotification.vue
+// StockWise-Front\src\components\AlertsNotification.vue
 <template>
   <div class="alerts-container">
     <!-- Sino com badge -->
@@ -78,9 +78,14 @@
             </template>
 
             <!-- Conteúdo do alerta -->
-            <v-list-item-title class="text-subtitle-2 mb-1">
-              {{ alert.title }}
-            </v-list-item-title>
+            <v-list-item-content class="d-flex align-center">
+  <v-list-item-title class="headline mb-0">
+    {{ alert.houseName }}
+  </v-list-item-title>
+  <v-list-item-subtitle class="text-subtitle-2 ml-2 mb-0">
+    - {{ alert.title }}
+  </v-list-item-subtitle>
+</v-list-item-content>
 
             <v-list-item-subtitle class="text-caption text-medium-emphasis">
               {{ alert.message }}
@@ -120,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAlertsStore } from '@/stores/alerts';
 
 const alertsStore = useAlertsStore();
@@ -131,11 +136,19 @@ const hasUnreadAlerts = computed(() => alertsStore.hasUnreadAlerts);
 const unreadCount = computed(() => alertsStore.unreadCount);
 const hasAlerts = computed(() => alertsStore.alerts.length > 0);
 
-const sortedAlerts = computed(() => 
-  [...alertsStore.alerts]
+onMounted(() => {
+  const alerts = alertsStore.alerts;
+  console.log('Alertas recebidos do alertsStore:', alerts);
+});
+
+const sortedAlerts = computed(() => {
+  const alerts = alertsStore.alerts;
+  const sorted = [...alerts]
     .filter(alert => !alert.dismissed)
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-);
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  console.log('Alertas ordenados e filtrados:', sorted);
+  return sorted;
+});
 
 // Métodos de utilidade
 const getAlertColor = (alert) => {
@@ -166,23 +179,27 @@ const getAlertIcon = (alert) => {
         success: 'mdi-thermometer-check'
       }
     },
-    // Preparado para futuros tipos de alerta
-    weight: {
-      overweight: 'mdi-weight',
-      low_stock: 'mdi-package-down'
-    },
-    rfid: {
-      unregistered: 'mdi-help-circle',
-      removed: 'mdi-package-remove'
+    products: {
+      product_removed: {
+        info: 'mdi-package-variant-remove',
+        warning: 'mdi-package-variant-remove'
+      },
+      product_added: {
+        success: 'mdi-package-variant-plus',
+        info: 'mdi-package-variant-plus'
+      },
+      low_stock: {
+        warning: 'mdi-alert-circle',
+        error: 'mdi-alert-circle'
+      }
     }
   };
 
-  // Tentar obter ícone específico
-  if (icons[alert.category]?.[alert.type]?.[alert.severity]) {
+ // Tentar obter ícone específico
+ if (icons[alert.category]?.[alert.type]?.[alert.severity]) {
     return icons[alert.category][alert.type][alert.severity];
   }
 
-  // Fallback para ícone genérico
   return 'mdi-bell';
 };
 

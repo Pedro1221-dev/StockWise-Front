@@ -1,4 +1,4 @@
-// components/UserHouseCard.vue
+// StockWise-Front\src\components\UserHouseCard.vue
 <template>
   <v-card class="house-card">
     <!-- Header com nome e role -->

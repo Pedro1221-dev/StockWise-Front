@@ -1,3 +1,4 @@
+// StockWise-Front\src\views\RegisterView.vue
 <script setup>
 import RegisterForm from '../components/RegisterForm.vue'
 </script>

@@ -80,6 +80,10 @@ class AlertsMonitorService {
                 console.log(`[AlertsMonitor] Enviando alerta para casa ${houseId}`);
                 this.publishAlert(houseId, {
                     type: alertType,
+                    title: alertType === 'low_temperature' ? 'Temperatura Baixa' : 'Temperatura Alta',
+                     message: alertType === 'low_temperature' 
+            ? `A temperatura caiu abaixo do limite mínimo de ${config.min_temperature}°C.` 
+            : `A temperatura subiu acima do limite máximo de ${config.max_temperature}°C.`,
                     value: temperature,
                     threshold: alertType === 'low_temperature' ? 
                         config.min_temperature : config.max_temperature,
@@ -176,6 +180,113 @@ class AlertsMonitorService {
         this.monitoredHouses.forEach((_, houseId) => {
             this.stopMonitoring(houseId);
         });
+    }
+
+    // Novos métodos para alertas de produtos
+    monitorProduct(houseId, shelfId, product) {
+        // Verificar stock baixo
+        this.checkLowStock(houseId, shelfId, product);
+    }
+
+    checkLowStock(houseId, shelfId, product) {
+        const netWeight = product.current_weight - product.container_weight;
+        
+        if (netWeight <= product.min_stock) {
+            const topic = `house/${houseId}/alerts/products/stock`;
+            this.publishProductAlert(topic, {
+                type: 'low_stock',
+                category: 'products',
+                severity: 'warning',
+                title: `Stock Baixo: ${product.name}`,
+                message: `${product.name} está abaixo do mínimo! (${this.formatWeight(netWeight)}/${this.formatWeight(product.min_stock)})`,
+                data: {
+                    product_id: product.product_id,
+                    shelf_id: shelfId,
+                    current_weight: netWeight,
+                    min_stock: product.min_stock
+                }
+            });
+        }
+    }
+
+    publishProductAction(houseId, shelfId, product, action, newWeight = null) {
+        console.log('[AlertsMonitor] Iniciando publishProductAction:', {
+            houseId,
+            shelfId,
+            product,
+            action,
+            newWeight
+        });
+
+        const topic = `house/${houseId}/alerts/products/action`;
+        let alertConfig;
+
+        if (action === 'removed') {
+            console.log('[AlertsMonitor] Configurando alerta de remoção');
+            alertConfig = {
+                type: 'product_removed',
+                category: 'products',
+                severity: 'info',
+                title: `Produto Removido`,
+                message: `${product.name} foi removido da prateleira`,
+                data: {
+                    product_id: product.product_id,
+                    shelf_id: shelfId,
+                    previous_weight: product.current_weight
+                }
+            };
+        } else if (action === 'added') {
+            console.log('[AlertsMonitor] Configurando alerta de adição');
+            alertConfig = {
+                type: 'product_added',
+                category: 'products',
+                severity: 'success',
+                title: `Produto Reposto`,
+                message: `${product.name} foi reposto na prateleira com ${this.formatWeight(newWeight - product.container_weight)}`,
+                data: {
+                    product_id: product.product_id,
+                    shelf_id: shelfId,
+                    new_weight: newWeight
+                }
+            };
+        }
+
+        if (alertConfig) {
+            this.publishProductAlert(topic, alertConfig);
+        } else {
+            console.warn('[AlertsMonitor] Nenhuma configuração de alerta gerada para:', action);
+        }
+    }
+
+
+    publishProductAlert(topic, data) {
+        const message = {
+            ...data,
+            timestamp: new Date().toISOString(),
+            house_id: this.getCurrentHouseId()
+        };
+
+        console.log(`[AlertsMonitor] Publicando alerta de produto no tópico ${topic}:`, message);
+        
+        try {
+            mqttService.publish(topic, message);
+            console.log('[AlertsMonitor] Alerta publicado com sucesso');
+        } catch (error) {
+            console.error('[AlertsMonitor] Erro ao publicar alerta:', error);
+        }
+    }
+
+    // Utilitários
+    formatWeight(weight) {
+        if (!weight && weight !== 0) return 'N/D';
+        const kg = weight / 1000;
+        return kg >= 1 ? `${kg.toFixed(1)}kg` : `${weight}g`;
+    }
+
+    getCurrentHouseId() {
+        // Implementar lógica para obter o house_id atual
+        // Pode ser através do router ou de uma store
+        return window.location.pathname.split('/')[2];
     }
 }
 

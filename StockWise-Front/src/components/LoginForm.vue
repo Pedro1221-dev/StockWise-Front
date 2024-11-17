@@ -1,3 +1,4 @@
+// StockWise-Front\src\components\LoginForm.vue
 <template>
   <div>
     <v-card

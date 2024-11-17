@@ -1,4 +1,4 @@
-// stores/user.js
+// StockWise-Front\src\stores\user.js
 import { defineStore } from 'pinia'
 import { apiService } from '@/services/api.service'
 import router from '@/router'

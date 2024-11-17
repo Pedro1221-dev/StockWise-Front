@@ -1,4 +1,4 @@
-// stores/temperature.js
+// StockWise-Front\src\stores\temperature.js
 import { defineStore } from 'pinia';
 
 export const useTemperatureStore = defineStore('temperature', {

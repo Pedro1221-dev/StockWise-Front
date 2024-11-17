@@ -19,9 +19,14 @@ export const useHousesStore = defineStore('houses', {
 
     actions: {
         async fetchUserHouses(force = false) {
-            if (!force && this.houses.length > 0) return;
-
             try {
+                console.log('[HousesStore] Iniciando fetchUserHouses');
+                
+                if (!force && this.houses.length > 0) {
+                    console.log('[HousesStore] Usando casas em cache');
+                    return;
+                }
+
                 const userStore = useUserStore();
                 const token = localStorage.getItem('token');
                 const userId = userStore.user?.user_id;
@@ -34,19 +39,21 @@ export const useHousesStore = defineStore('houses', {
                 
                 if (response.success) {
                     this.houses = response.data;
+                    console.log('[HousesStore] Casas carregadas:', this.houses);
+                    
+                    // Inicializar serviços
                     await this.initializeHouseServices();
-
-                    // Inicializar sistema de alertas
-                    this.initializeAlertSystem();
                 }
             } catch (error) {
-                console.error('Erro ao carregar casas:', error);
+                console.error('[HousesStore] Erro ao carregar casas:', error);
                 throw error;
             }
         },
 
         async initializeHouseServices() {
             try {
+                console.log('[HousesStore] Inicializando serviços das casas');
+
                 // Garantir conexão MQTT
                 if (mqttService.connectionStatus !== 'connected') {
                     await mqttService.connect();
@@ -54,25 +61,30 @@ export const useHousesStore = defineStore('houses', {
 
                 // Inicializar serviços para cada casa
                 for (const house of this.houses) {
-                    // Criar e iniciar simulador
+                    console.log(`[HousesStore] Inicializando serviços para casa ${house.house_id}`);
+
+                    // Inicializar simulador de temperatura
                     if (!this.simulators.has(house.house_id)) {
                         const simulator = new TemperatureSimulator(house.house_id);
                         simulator.start();
                         this.simulators.set(house.house_id, simulator);
                     }
 
-                    // Subscrever ao tópico de temperatura
-                    const topic = `house/${house.house_id}/temperature`;
-                    mqttService.subscribe(topic, (data) => {
-                        console.log(`Temperatura recebida para casa ${house.house_id}:`, data);
-                        useTemperatureStore().updateTemperature(house.house_id, {
-                            value: data.temperature,
-                            timestamp: data.timestamp
-                        });
-                    });
+                      // Subscrever ao tópico de temperatura
+                      const topic = `house/${house.house_id}/temperature`;
+                      mqttService.subscribe(topic, (data) => {
+                          console.log(`Temperatura recebida para casa ${house.house_id}:`, data);
+                          useTemperatureStore().updateTemperature(house.house_id, {
+                              value: data.temperature,
+                              timestamp: data.timestamp
+                          });
+                      });
+
+                    // Inicializar sistema de alertas
+                    await this.initializeAlertSystem(house);
                 }
             } catch (error) {
-                console.error('Erro ao inicializar serviços:', error);
+                console.error('[HousesStore] Erro ao inicializar serviços:', error);
                 throw error;
             }
         },
@@ -80,15 +92,22 @@ export const useHousesStore = defineStore('houses', {
         /**
          * Inicializa o sistema de alertas para todas as casas
          */
-        initializeAlertSystem() {
-            const alertsStore = useAlertsStore();
-            
-            for (const house of this.houses) {
-                // Iniciar monitorização de temperatura para alertas
+
+        async initializeAlertSystem(house) {
+            try {
+                console.log(`[HousesStore] Inicializando sistema de alertas para casa ${house.house_id}`);
+
+                // Iniciar monitorização de temperatura
                 alertsMonitor.startMonitoring(house);
-                
-                // Subscrever aos alertas na store
+
+                // Iniciar monitorização de alertas gerais (temperatura e produtos)
+                const alertsStore = useAlertsStore();
                 alertsStore.subscribeToHouseAlerts(house.house_id);
+
+                console.log(`[HousesStore] Sistema de alertas inicializado com sucesso para casa ${house.house_id}`);
+            } catch (error) {
+                console.error(`[HousesStore] Erro ao inicializar alertas para casa ${house.house_id}:`, error);
+                throw error;
             }
         },
 
