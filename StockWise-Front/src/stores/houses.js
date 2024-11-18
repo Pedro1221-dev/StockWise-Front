@@ -18,37 +18,47 @@ export const useHousesStore = defineStore('houses', {
     }),
 
     actions: {
-        async fetchUserHouses(force = false) {
-            try {
-                console.log('[HousesStore] Iniciando fetchUserHouses');
-                
-                if (!force && this.houses.length > 0) {
-                    console.log('[HousesStore] Usando casas em cache');
-                    return;
-                }
 
-                const userStore = useUserStore();
-                const token = localStorage.getItem('token');
-                const userId = userStore.user?.user_id;
+async fetchUserHouses(force = false) {
+    try {
+        console.log('[HousesStore] Iniciando fetchUserHouses');
+        
+        if (!force && this.houses.length > 0) {
+            console.log('[HousesStore] Usando casas em cache');
+            return;
+        }
 
-                if (!token || !userId) {
-                    throw new Error('Dados de autenticação inválidos');
-                }
+        const userStore = useUserStore();
+        const token = localStorage.getItem('token');
+        const userId = userStore.user?.user_id;
 
-                const response = await housesService.getUserHouses(userId, token);
-                
-                if (response.success) {
-                    this.houses = response.data;
-                    console.log('[HousesStore] Casas carregadas:', this.houses);
-                    
-                    // Inicializar serviços
-                    await this.initializeHouseServices();
-                }
-            } catch (error) {
-                console.error('[HousesStore] Erro ao carregar casas:', error);
-                throw error;
-            }
-        },
+        if (!token || !userId) {
+            throw new Error('Dados de autenticação inválidos');
+        }
+
+        const response = await housesService.getUserHouses(userId, token);
+        
+        // Atualizar o estado mesmo se não houver casas
+        this.houses = response.data || [];
+        console.log('[HousesStore] Casas carregadas:', this.houses);
+        
+        // Inicializar serviços apenas se houver casas
+        if (this.houses.length > 0) {
+            await this.initializeHouseServices();
+        }
+
+        return true; // Indicar sucesso mesmo sem casas
+
+    } catch (error) {
+        console.warn('[HousesStore] Erro ao carregar casas:', error);
+        // Não propagar o erro se for apenas "no houses"
+        if (!error.msg?.includes('No houses found')) {
+            throw error;
+        }
+        // Definir array vazio para casas
+        this.houses = [];
+    }
+},
 
         async initializeHouseServices() {
             try {
@@ -89,6 +99,68 @@ export const useHousesStore = defineStore('houses', {
             }
         },
 
+
+async registerHouse(houseData) {
+    try {
+        console.log('[HousesStore] A registar nova casa:', houseData);
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('Token não encontrado');
+        }
+
+        // Chamar o serviço para registar a casa
+        const response = await housesService.registerHouse(houseData, token);
+        
+        if (!response.success) {
+            throw new Error(response.message || 'Erro ao registar casa');
+        }
+
+        // Adicionar a nova casa ao array de casas
+        this.houses.push(response.data);
+
+        // Inicializar serviços para a nova casa
+        await this.initializeHouseServices();
+
+        console.log('[HousesStore] Casa registada com sucesso:', response.data);
+        return response.data;
+
+    } catch (error) {
+        console.error('[HousesStore] Erro ao registar casa:', error);
+        throw error;
+    }
+},
+
+async updateHouse(houseId, houseData) {
+    try {
+        console.log('[HousesStore] A atualizar casa:', { houseId, data: houseData });
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('Token não encontrado');
+        }
+
+        const response = await housesService.updateHouse(houseId, houseData, token);
+        
+        if (!response.success) {
+            throw new Error(response.message || 'Erro ao atualizar casa');
+        }
+
+        // Atualizar a casa no estado local
+        const index = this.houses.findIndex(h => h.house_id === houseId);
+        if (index !== -1) {
+            this.houses[index] = { ...this.houses[index], ...houseData };
+        }
+
+        // Recarregar casas para garantir sincronização
+        await this.fetchUserHouses(true);
+
+        return response;
+    } catch (error) {
+        console.error('[HousesStore] Erro ao atualizar casa:', error);
+        throw error;
+    }
+},
         /**
          * Inicializa o sistema de alertas para todas as casas
          */

@@ -63,6 +63,16 @@
       <v-card>
         <v-card-title>Registar Nova Casa</v-card-title>
         <v-card-text>
+          <v-alert
+        v-if="errorMessage"
+        type="error"
+        variant="tonal"
+        closable
+        class="mb-4"
+        @click:close="errorMessage = ''"
+    >
+        {{ errorMessage }}
+    </v-alert>
           <v-form ref="form" v-model="isValid" @submit.prevent="registerHouse">
             <v-text-field
               v-model="newHouse.name"
@@ -149,19 +159,28 @@ const fetchHouses = () => {
   housesStore.fetchUserHouses(true);
 };
 
-const registerHouse = async () => {
-  if (!form.value?.validate()) return;
 
-  registerLoading.value = true;
-  try {
-    await housesStore.registerHouse(newHouse.value);
-    showRegisterDialog.value = false;
-    newHouse.value = { name: '', min_temperature: '', max_temperature: '' };
-  } catch (error) {
-    console.error('Erro ao registar casa:', error);
-  } finally {
-    registerLoading.value = false;
-  }
+const errorMessage = ref('');
+
+// Atualizar o método registerHouse para incluir feedback
+const registerHouse = async () => {
+    if (!form.value?.validate()) return;
+
+    registerLoading.value = true;
+    errorMessage.value = ''; // Limpar mensagens de erro anteriores
+    
+    try {
+        await housesStore.registerHouse(newHouse.value);
+        showRegisterDialog.value = false;
+        newHouse.value = { name: '', min_temperature: '', max_temperature: '' };
+        await housesStore.fetchUserHouses(true);
+        
+    } catch (error) {
+        console.error('Erro ao registar casa:', error);
+        errorMessage.value = error.message || 'Erro ao registar casa. Por favor, tente novamente.';
+    } finally {
+        registerLoading.value = false;
+    }
 };
 
 const clearError = () => {

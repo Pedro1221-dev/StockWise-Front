@@ -139,7 +139,7 @@ const loadingShelfId = ref(null);
 
 // Computed properties para temperatura
 const currentTemperature = computed(() => {
-    console.log('Buscando temperatura para casa:', route.params.id);
+    console.log('À prcura da temperatura para casa:', route.params.id);
     const temp = temperatureStore.getHouseTemperature(Number(route.params.id));
     console.log('Temperatura obtida:', temp);
     return temp;

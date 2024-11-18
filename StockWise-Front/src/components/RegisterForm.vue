@@ -225,21 +225,27 @@ const clearError = () => {
 // Função de submissão
 const handleSubmit = async () => {
   try {
+    console.log('Início do handleSubmit');
     if (!validateForm()) {
-      return
+      console.log('Validação falhou');
+      return;
     }
 
-    loading.value = true
-    clearError()
-
-    await userStore.createUser(form)
-    router.push('/')
+    loading.value = true;
+    clearError();
+    
+    console.log('A enviar dados para criar utilizador:', form);
+    await userStore.createUser(form);
+    console.log('Utilizador criado com sucesso');
+    
+    router.push('/');
   } catch (error) {
+    console.error('Erro completo:', error);
     errorMessage.value = Array.isArray(error.msg) 
       ? error.msg[0] 
-      : error.msg || 'Erro ao criar utilizador. Por favor, tente novamente.'
+      : error.msg || 'Erro ao criar utilizador. Por favor, tente novamente.';
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 

@@ -111,13 +111,43 @@ export const useUserStore = defineStore('users', {
             }
         },
 
+        // Adicionar nas actions do useUserStore
+async createUser(userData) {
+    try {
+        console.log('A tentar criar utilizador:', userData);
+        
+        // Fazer pedido à API
+        const response = await apiService.post('/users', userData);
+        
+        if (!response.success) {
+            throw new Error(response.msg || 'Erro ao criar utilizador');
+        }
+
+        console.log('Utilizador criado com sucesso:', response.data);
+        return response;
+        
+    } catch (error) {
+        console.error('Erro ao criar utilizador:', error);
+        throw error;
+    }
+},
+
                 /**
          * Inicializa recursos após login
          */
-                async initializeAfterLogin() {
-                    const { fetchUserHouses } = useHousesStore();
-                    await fetchUserHouses(true); // Forçar recarregamento
-                },
+// src/stores/user.js
+async initializeAfterLogin() {
+    try {
+        const { fetchUserHouses } = useHousesStore();
+        await fetchUserHouses(true);
+    } catch (error) {
+        // Apenas loggar o erro, mas não o propagar se for relacionado com "no houses"
+        if (!error.msg?.includes('No houses found')) {
+            throw error;
+        }
+        console.log('Utilizador sem casas registadas - normal para novos utilizadores');
+    }
+},
         /**
          * Verifica estado de autenticação
          */

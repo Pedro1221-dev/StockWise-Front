@@ -2,7 +2,7 @@
 import { mqttService } from "@/services/mqtt.service";
 
 export class TemperatureSimulator {
-    constructor(houseId, baseTemp = 15) {
+    constructor(houseId, baseTemp = 19) {
         this.houseId = houseId;
         this.baseTemp = baseTemp;
         this.interval = null;
@@ -13,7 +13,7 @@ export class TemperatureSimulator {
         this.publishTemperature();
         
         // Iniciar atualizações periódicas
-        this.interval = setInterval(() => this.publishTemperature(), 500000);
+        this.interval = setInterval(() => this.publishTemperature(), 5000);
     }
 
     publishTemperature() {

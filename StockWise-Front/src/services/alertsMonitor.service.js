@@ -112,6 +112,8 @@ class AlertsMonitorService {
                 this.publishAlert(houseId, {
                     type: 'temperature_normalized',
                     value: temperature,
+                    title: 'Temperatura Normalizada',
+                    message: 'A temperatura voltou ao intervalo normal.',
                     threshold: `${config.min_temperature} - ${config.max_temperature}`,
                     severity: 'success'
                 });
@@ -139,11 +141,18 @@ class AlertsMonitorService {
         const timeSinceLastAlert = currentTime - config.lastAlertTimestamp;
         
         // Definir intervalos baseados na severidade
-        const intervals = {
-            normal: 5 * 60 * 1000,    // 5 minutos
-            warning: 3 * 60 * 1000,   // 3 minutos
-            critical: 1 * 60 * 1000   // 1 minuto
+/*         const intervals = {
+            normal: 5 * 60 * 100,    // 5 minutos
+            warning: 3 * 60 * 100,   // 3 minutos
+            critical: 1 * 60 * 100   // 1 minuto
         };
+ */
+        const intervals = {
+            normal: 10 * 1000,    // 10 segundos
+            warning: 6 * 1000,    // 6 segundos
+            critical: 2 * 1000    // 2 segundos
+        };
+        
 
         // Enviar se passou tempo suficiente
         return timeSinceLastAlert >= intervals[config.currentStatus];

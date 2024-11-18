@@ -118,17 +118,20 @@
       <!-- Implementar componente de convite aqui -->
     </v-dialog>
 
-    <v-dialog v-model="showEditDialog" max-width="500px">
-      <!-- Implementar componente de edição aqui -->
-    </v-dialog>
+    <EditHouseDialog
+  v-model="showEditDialog"
+  :house="house"
+  @house-updated="$emit('update')"
+/>
   </v-card>
+
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useTemperatureStore } from '@/stores/temperature';
-
+import EditHouseDialog from './EditHouseDialog.vue';
 const props = defineProps({
   house: {
     type: Object,

@@ -45,7 +45,7 @@ class ProductsService {
         try {
             return await apiService.get(`/products/shelf/${shelfId}`, token);
         } catch (error) {
-            console.error('[ProductsService] Erro ao buscar produtos da prateleira:', error);
+            console.error('[ProductsService] Erro ao retrieve produtos da prateleira:', error);
             throw error;
         }
     }
