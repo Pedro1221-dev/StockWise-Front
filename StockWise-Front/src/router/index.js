@@ -116,4 +116,17 @@ router.beforeEach(async (to, from, next) => {
   next()
 })
 
+router.afterEach((to, from) => {
+  // Remover query parameters de expiração após mostrar a mensagem
+  if (to.name === 'login' && to.query.expired) {
+    router.replace({
+      name: 'login',
+      query: { 
+        ...to.query,
+        expired: undefined
+      }
+    });
+  }
+});
+
 export default router

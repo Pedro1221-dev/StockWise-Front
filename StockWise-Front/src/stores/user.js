@@ -178,6 +178,14 @@ async initializeAfterLogin() {
 },
 
         /**
+         * Força logout sem redirecionar (usado no caso de token expirado)
+         */
+        forceLogout() {
+            this.user = null;
+            this.isAuthenticated = false;
+            this.initialized = false;
+        },
+        /**
          * Limpa erros da store
          */
         clearError() {

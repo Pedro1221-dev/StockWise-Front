@@ -1,5 +1,7 @@
 // services/api.service.js
 import axios from 'axios';
+import { useRouter } from 'vue-router';
+import { useUserStore } from '@/stores/user';
 
 class ApiService {
     constructor() {
@@ -16,6 +18,12 @@ class ApiService {
             response => response.data,
             error => {
                 if (error.response) {
+                    // Verificar se é erro de token expirado
+                    if (error.response.status === 401 && 
+                        error.response.data.msg?.includes('token has expired')) {
+                        console.log('Token expirado, a fazer logout...');
+                        this.handleTokenExpiration();
+                    }
                     return Promise.reject(this.formatError(error.response.data));
                 } else if (error.request) {
                     return Promise.reject({
@@ -30,6 +38,29 @@ class ApiService {
                 }
             }
         );
+    }
+
+       /**
+     * Trata a expiração do token fazendo logout e redirecionando
+     */
+       handleTokenExpiration() {
+        // Limpar localStorage
+        localStorage.removeItem('token');
+        localStorage.removeItem('userData');
+
+        // Usar o userStore para fazer logout
+        const userStore = useUserStore();
+        userStore.forceLogout();
+
+        // Redirecionar para login
+        const router = useRouter();
+        router.push({ 
+            name: 'login',
+            query: { 
+                redirect: router.currentRoute.value.fullPath,
+                expired: 'true'
+            }
+        });
     }
 
     /**

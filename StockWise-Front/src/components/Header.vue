@@ -1,7 +1,6 @@
 <template>
   <v-app-bar>
     <v-app-bar-title>
-      <!-- Substituímos o texto pelo logótipo -->
       <router-link 
         to="/houses" 
         class="text-decoration-none"

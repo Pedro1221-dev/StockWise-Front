@@ -146,14 +146,16 @@ async updateHouse(houseId, houseData) {
             throw new Error(response.message || 'Erro ao atualizar casa');
         }
 
-        // Atualizar a casa no estado local
-        const index = this.houses.findIndex(h => h.house_id === houseId);
+        // Atualizar apenas a casa específica no estado local
+        const index = this.houses.findIndex(h => h.house_id === Number(houseId));
         if (index !== -1) {
-            this.houses[index] = { ...this.houses[index], ...houseData };
+            // Atualizar preservando outros campos
+            this.houses[index] = {
+                ...this.houses[index],
+                ...houseData,
+                house_id: Number(houseId) // Garantir que o ID se mantém
+            };
         }
-
-        // Recarregar casas para garantir sincronização
-        await this.fetchUserHouses(true);
 
         return response;
     } catch (error) {
