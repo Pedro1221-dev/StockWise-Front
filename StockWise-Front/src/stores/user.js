@@ -131,10 +131,10 @@ export const useUserStore = defineStore('users', {
          */
  logout() {
     // Parar simuladores
-    temperatureSimulatorService.stopAll();
+ //   temperatureSimulatorService.stopAll();
     
     // Limpar subscrições MQTT
-    mqttSubscriptionManager.clearAllSubscriptions();
+  //  mqttSubscriptionManager.clearAllSubscriptions();
     
     // Limpar dados do utilizador
     this.user = null;

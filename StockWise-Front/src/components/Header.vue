@@ -1,12 +1,16 @@
-// StockWise-Front\src\components\Header.vue
 <template>
   <v-app-bar>
     <v-app-bar-title>
+      <!-- Substituímos o texto pelo logótipo -->
       <router-link 
         to="/houses" 
-        class="text-decoration-none primary--text"
+        class="text-decoration-none"
       >
-        StockWise
+        <img 
+          src="https://i.ibb.co/qCqpT2s/logo.png" 
+          alt="StockWise Logo" 
+          style="height: 40px;" 
+        />
       </router-link>
     </v-app-bar-title>
 

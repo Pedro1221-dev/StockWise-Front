@@ -1,8 +1,13 @@
 // StockWise-Front\src\components\RegisterForm.vue
 <template>
   <div>
+    <v-img
+      class="mx-auto my-6"
+      max-width="228"
+      src="https://i.ibb.co/qCqpT2s/logo.png"
+    ></v-img>
     <v-card
-      class="mx-auto pa-12 pb-8"
+      class="mx-auto pa-12 pb-8 mt-0"
       elevation="8"
       max-width="448"
       rounded="lg"
